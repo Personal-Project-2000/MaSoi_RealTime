@@ -1,6 +1,7 @@
 // connect firebase
 var FCM = require('fcm-node')
 const { networkInterfaces } = require('os')
+const { isBuffer } = require('util')
 var serviceAccount = require("./firebase.json")
 var fcm = new FCM(serviceAccount)
 
@@ -66,9 +67,9 @@ io.sockets.on("connection", (socket) => {
         var info = JSON.parse(data)
 
         //check user exist
-        if(userList.some((e) => {return e.user === info.user && e.device === info.device})){
+        if(userList.some((e) => {return e.user === info.user})){
             //find user of userList
-            var user = userList.find((e) => e.user === info.user && e.device === info.device)
+            var user = userList.find((e) => e.user === info.user)
             //find index of user
             var index = userList.indexOf(user)
             //change status of user
@@ -94,7 +95,7 @@ io.sockets.on("connection", (socket) => {
         //     messageList = messageList.unfilter((e) =>  e.receiver === info.user)
         // }
 
-        check("login")
+        check1("login", userList)
 
         //notification client succes
         socket.emit('noti_login', {
@@ -127,7 +128,7 @@ io.sockets.on("connection", (socket) => {
         let index = userList.indexOf(socket.id)
         userList.splice(index, 1);
 
-        check("signout")
+        check1("signout", userList)
     })
 
     //send chat || data: sender, receiver, title, body
@@ -204,7 +205,7 @@ io.sockets.on("connection", (socket) => {
         check_log_messageList()
     }
 
-    //data: user || roomId
+    //data: user || roomId || roomName
     socket.on("createRoom", (data) => {
         var info = JSON.parse(data)
 
@@ -218,8 +219,10 @@ io.sockets.on("connection", (socket) => {
 
         check1("mảng người chơi trong đã vào phòng", roomPlayer)
 
+        //Thông báo mọi người đang onl có 1 phòng vừa được tạo
         socket.broadcast.emit("S_createroom", {
-            roomId: info.roomId
+            roomId: info.roomId,
+            roomName: info.roomName
         })
     })
 
@@ -227,37 +230,46 @@ io.sockets.on("connection", (socket) => {
     socket.on("exitRoom", (data) => {
         var info = JSON.parse(data)
 
-        let index = roomPlayer.indexOf(info.user)
+        var player1 = roomPlayer.find((e) => e.roomId === info.roomId && e.user === info.user)
+        let index = roomPlayer.indexOf(player1)
         roomPlayer.splice(index, 1);
 
         check1("exitroom", roomPlayer)
+        check("code: "+info.code)
 
-        if(code == 2){
+        if(info.code === 2){
+            var player2 = userList.find((e) => e.user === info.user)
             //find index of user
-            var index1 = userList.indexOf(info.user)
+            var index1 = userList.indexOf(player2)
 
             socket.to(userList[index1].id).emit("S_kickroom", {})
         }
 
-        if(code = 3){
-            var player = roomPlayer.find((e) => e.roomId == roomId)
+        if(info.code === 3){
+            var player = roomPlayer.find((e) => e.roomId == info.roomId)
 
-            //find index of user
-            var indexNext = userList.indexOf(player.user)
+            if(player !== undefined){
+                var user = userList.find((e) => e.user === player.user)
+                //find index of user
+                var indexNext = userList.indexOf(user)
 
-            socket.to(userList[indexNext].id).emit("S_bossout", {})
+                socket.to(userList[indexNext].id).emit("S_bossout", {response: "ỷ quyền"})
+            }
         }
 
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
 
+        //Gửi các người chơi trong phòng
         for(const item of playerOfRoom){
+            var user1 = userList.find((e) => e.user === item.user)
             //find index of user
-            var index = userList.indexOf(item.user)
+            var index2 = userList.indexOf(user1)
 
-            socket.to(userList[index].id).emit("S_exitroom1", {user: info.user})
+            socket.to(userList[index2].id).emit("S_exitroom", {user: info.user})
         }
 
-        socket.broadcast.emit("S_exitroom2", {
+        //Gửi các người chơi ở ngoài
+        socket.broadcast.emit("S_exitroom1", {
             roomId: info.roomId,
             quantity: playerOfRoom.length
         })
@@ -270,38 +282,42 @@ io.sockets.on("connection", (socket) => {
         check1("setting", info)
 
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
-
+        //gửi tất cả những người chơi trong phòng
         for(const item of playerOfRoom){
+            var player = userList.find((e) => e.user === item.user)
             //find index of user
-            var index = userList.indexOf(item.user)
+            var index = userList.indexOf(player)
 
-            socket.to(userList[index].id).emit("S_settingroom1", {pass: info.pass, voteTime: info.voteTime, advocateTime: info.advocateTime})
+            socket.to(userList[index].id).emit("S_settingroom", {pass: info.pass, voteTime: info.voteTime, advocateTime: info.advocateTime})
         }
 
-        if(!pass.equals("")){
-            socket.broadcast.emit("S_settingroom2", {
-                roomId: info.roomId,
-                pass: info.pass
-            })
-        }
+        //gửi cho những người đang đăng nhập
+        socket.broadcast.emit("S_settingroom1", {
+            roomId: info.roomId,
+            pass: info.pass
+        })
     
     })
 
-    //data: user || roomId
+    //data: user || roomId || ready
     socket.on("ready", (data) => {
         var info = JSON.parse(data)
 
-        var index1 = roomPlayer.indexOf(info.user)
+        var mine = roomPlayer.find((e) => e.user === info.user)
+        var index1 = roomPlayer.indexOf(mine)
 
-        roomPlayer[index1].status = !roomPlayer[index1].status;
+        roomPlayer[index1].ready = info.ready;
 
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
 
-        for(const item of playerOfRoom){
-            //find index of user
-            var index = userList.indexOf(item.user)
+        check1("ready", roomPlayer)
 
-            socket.to(userList[index].id).emit("S_readyroom", {user: info.user, ready: playerOfRoom[index1].status})
+        for(const item of playerOfRoom){
+            var user = userList.find((e) => e.user === item.user)
+            //find index of user
+            var index = userList.indexOf(user)
+
+            socket.to(userList[index].id).emit("S_readyroom", {user: info.user, ready: playerOfRoom[index1].ready})
         }
     })
 
@@ -309,120 +325,124 @@ io.sockets.on("connection", (socket) => {
     socket.on("start", (data) => {
         var info = JSON.parse(data)
 
-        socket.broadcast.emit("S_startRoom", {roomId: info.roomId})
+        socket.broadcast.emit("S_startRoom1", {roomId: info.roomId})
 
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
 
+        bossBai(10)
+
         var quantity = playerOfRoom.length
-        if(quantity < 7){
-            for(var i = 0; i < 3; i++){
-                var random = Math.floor(Math.random() * playerOfRoom.length);
-                if(i == 0){
-                    randomBai(random, playerOfRoom, 1)
-                }else if(i == 1){
-                    randomBai(random, playerOfRoom, 2)
-                }else if(i == 2){
-                    randomBai(random, playerOfRoom, 3)
+        if(quantity >= 5){
+            if(quantity < 7 ){
+                for(var i = 0; i < 3; i++){
+                    var random = Math.floor(Math.random() * playerOfRoom.length);
+                    if(i == 0){
+                        randomBai(random, playerOfRoom, 1)
+                    }else if(i == 1){
+                        randomBai(random, playerOfRoom, 2)
+                    }else if(i == 2){
+                        randomBai(random, playerOfRoom, 3)
+                    }
+                    playerOfRoom.splice(random, 1)
                 }
-                playerOfRoom.splice(random, 1)
-            }
-        }else if(quantity < 10){
-            for(var i = 0 ; i < 5; i ++){
-                var random = Math.floor(Math.random() * playerOfRoom.length);
-                if(i < 2){
-                    randomBai(playerOfRoom, 1)
-                }else if(i == 2){
-                    randomBai(playerOfRoom, 2)
-                }else if(i == 3){
-                    randomBai(playerOfRoom,3)
-                }else if(i == 4){
-                    randomBai(playerOfRoom, 4)
+            }else if(quantity < 10){
+                for(var i = 0 ; i < 5; i ++){
+                    var random = Math.floor(Math.random() * playerOfRoom.length);
+                    if(i < 2){
+                        randomBai(random, playerOfRoom, 1)
+                    }else if(i == 2){
+                        randomBai(random, playerOfRoom, 2)
+                    }else if(i == 3){
+                        randomBai(random, playerOfRoom,3)
+                    }else if(i == 4){
+                        randomBai(random, playerOfRoom, 4)
+                    }
+                    playerOfRoom.splice(random, 1)
                 }
-                playerOfRoom.splice(random, 1)
-            }
-        }else if(quantity < 12){
-            for(var i = 0 ; i < 8; i ++){
-                var random = Math.floor(Math.random() * playerOfRoom.length);
-                if(i < 3){
-                    randomBai(playerOfRoom, 1)
-                }else if(i == 3){
-                    randomBai(playerOfRoom, 2)
-                }else if(i == 4){
-                    randomBai(playerOfRoom, 3)
-                }else if(i == 5){
-                    randomBai(playerOfRoom, 4)
-                }else if(i == 6){
-                    randomBai(playerOfRoom, 5)
-                }else if(i == 7){
-                    randomBai(playerOfRoom, 6)
+            }else if(quantity < 12){
+                for(var i = 0 ; i < 8; i ++){
+                    var random = Math.floor(Math.random() * playerOfRoom.length);
+                    if(i < 3){
+                        randomBai(random, playerOfRoom, 1)
+                    }else if(i == 3){
+                        randomBai(random, playerOfRoom, 2)
+                    }else if(i == 4){
+                        randomBai(random, playerOfRoom, 3)
+                    }else if(i == 5){
+                        randomBai(random, playerOfRoom, 4)
+                    }else if(i == 6){
+                        randomBai(random, playerOfRoom, 5)
+                    }else if(i == 7){
+                        randomBai(random, playerOfRoom, 6)
+                    }
+                    playerOfRoom.splice(random, 1)
                 }
-                playerOfRoom.splice(random, 1)
-            }
-        }else if(quantity < 14){
-            for(var i = 0 ; i < 9; i ++){
-                var random = Math.floor(Math.random() * playerOfRoom.length);
-                if(i < 3){
-                    randomBai(playerOfRoom, 1)
-                }else if(i == 3){
-                    randomBai(playerOfRoom, 2)
-                }else if(i == 4){
-                    randomBai(playerOfRoom, 3)
-                }else if(i == 5){
-                    randomBai(playerOfRoom, 4)
-                }else if(i == 6){
-                    randomBai(playerOfRoom, 5)
-                }else if(i == 7){
-                    randomBai(playerOfRoom, 6)
-                }else if(i == 8){
-                    randomBai(playerOfRoom, 7)
+            }else if(quantity < 14){
+                for(var i = 0 ; i < 9; i ++){
+                    var random = Math.floor(Math.random() * playerOfRoom.length);
+                    if(i < 3){
+                        randomBai(random, playerOfRoom, 1)
+                    }else if(i == 3){
+                        randomBai(random, playerOfRoom, 2)
+                    }else if(i == 4){
+                        randomBai(random, playerOfRoom, 3)
+                    }else if(i == 5){
+                        randomBai(random, playerOfRoom, 4)
+                    }else if(i == 6){
+                        randomBai(random, playerOfRoom, 5)
+                    }else if(i == 7){
+                        randomBai(random, playerOfRoom, 6)
+                    }else if(i == 8){
+                        randomBai(random, playerOfRoom, 7)
+                    }
+                    playerOfRoom.splice(random, 1)
                 }
-                playerOfRoom.splice(random, 1)
-            }
-        }else if(quantity < 17){
-            for(var i = 0 ; i < 11; i ++){
-                var random = Math.floor(Math.random() * playerOfRoom.length);
-                if(i < 4){
-                    randomBai(playerOfRoom, 1)
-                }else if(i == 4){
-                    randomBai(playerOfRoom, 2)
-                }else if(i == 5){
-                    randomBai(playerOfRoom, 3)
-                }else if(i == 6){
-                    randomBai(playerOfRoom, 4)
-                }else if(i == 7){
-                    randomBai(playerOfRoom, 5)
-                }else if(i == 8){
-                    randomBai(playerOfRoom, 6)
-                }else if(i == 9){
-                    randomBai(playerOfRoom, 7)
-                }else if(i == 10){
-                    randomBai(playerOfRoom, 8)
+            }else if(quantity < 17){
+                for(var i = 0 ; i < 11; i ++){
+                    var random = Math.floor(Math.random() * playerOfRoom.length);
+                    if(i < 4){
+                        randomBai(random, playerOfRoom, 1)
+                    }else if(i == 4){
+                        randomBai(random, playerOfRoom, 2)
+                    }else if(i == 5){
+                        randomBai(random, playerOfRoom, 3)
+                    }else if(i == 6){
+                        randomBai(random, playerOfRoom, 4)
+                    }else if(i == 7){
+                        randomBai(random, playerOfRoom, 5)
+                    }else if(i == 8){
+                        randomBai(random, playerOfRoom, 6)
+                    }else if(i == 9){
+                        randomBai(random, playerOfRoom, 7)
+                    }else if(i == 10){
+                        randomBai(random, playerOfRoom, 8)
+                    }
+                    playerOfRoom.splice(random, 1)
                 }
-                playerOfRoom.splice(random, 1)
-            }
-        }else if(quantity >= 17){
-            for(var i = 0 ; i < 12; i ++){
-                var random = Math.floor(Math.random() * playerOfRoom.length);
-                if(i < 4){
-                    randomBai(playerOfRoom, 1)
-                }else if(i == 4){
-                    randomBai(playerOfRoom, 2)
-                }else if(i == 5){
-                    randomBai(playerOfRoom, 3)
-                }else if(i == 6){
-                    randomBai(playerOfRoom, 4)
-                }else if(i == 7){
-                    randomBai(playerOfRoom, 5)
-                }else if(i == 8){
-                    randomBai(playerOfRoom, 6)
-                }else if(i == 9){
-                    randomBai(playerOfRoom, 7)
-                }else if(i == 10){
-                    randomBai(playerOfRoom, 8)
-                }else if(i == 11){
-                    randomBai(playerOfRoom, 9)
+            }else if(quantity >= 17){
+                for(var i = 0 ; i < 12; i ++){
+                    var random = Math.floor(Math.random() * playerOfRoom.length);
+                    if(i < 4){
+                        randomBai(random, playerOfRoom, 1)
+                    }else if(i == 4){
+                        randomBai(random, playerOfRoom, 2)
+                    }else if(i == 5){
+                        randomBai(random, playerOfRoom, 3)
+                    }else if(i == 6){
+                        randomBai(random, playerOfRoom, 4)
+                    }else if(i == 7){
+                        randomBai(random, playerOfRoom, 5)
+                    }else if(i == 8){
+                        randomBai(random, playerOfRoom, 6)
+                    }else if(i == 9){
+                        randomBai(random, playerOfRoom, 7)
+                    }else if(i == 10){
+                        randomBai(random, playerOfRoom, 8)
+                    }else if(i == 11){
+                        randomBai(random, playerOfRoom, 9)
+                    }
+                    playerOfRoom.splice(random, 1)
                 }
-                playerOfRoom.splice(random, 1)
             }
         }
 
@@ -430,15 +450,24 @@ io.sockets.on("connection", (socket) => {
             randomBai(i, playerOfRoom, 10)
         }
 
-        check1("Start", roomPlayer);
-
         timeList.push({roomId: info.roomId, time: Math.floor((Date.now()/1000)/60)+5, code: 0})
         check1("Start_Time", timeList);
     })
 
-    //data: user || roomId
+    //data: user || roomId || roomName || userName || userImg
     socket.on("joinRoom", (data) => {
         var info = JSON.parse(data)
+
+        var playerOfRoom = roomPlayer.filter((e) => e.roomId === info.roomId)
+
+        //trả về cho những player trong room
+        for(const item of playerOfRoom){
+            var user = userList.find((e) => e.user === item.user)
+            //find index of user
+            var position = userList.indexOf(user)
+            
+            socket.to(userList[position].id).emit("S_joinroom", {user: info.user, userName: info.userName, userImg: info.userImg})
+        }
 
         //user || ready || func || roomId
         roomPlayer.push({
@@ -448,39 +477,50 @@ io.sockets.on("connection", (socket) => {
             roomId: info.roomId
         })
 
-        check1("joinroom", roomPlayer)
+        check2("joinroom")
 
-        var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
-
-        for(const item of playerOfRoom){
-            //find index of user
-            var index = userList.indexOf(item.user)
-
-            socket.to(userList[index].id).emit("S_joinroom", {user: info.user})
-        }
-
+        //trả về tất cả player đang online về MainActivity
         socket.broadcast.emit("S_joinroom1", {
             roomId: info.roomId,
+            roomName: info.roomName,
             quantity: playerOfRoom.length
         })
     })
 
+    //ramdom là vị trí thứ trự trong phòng
     function randomBai(random, playerOfRoom, func){
         var bai = funcList.find((e) => e.number == func)
 
         var player = playerOfRoom[random]
-        var index = roomPlayer.indexOf(player.user)
+        //index là vị trí trong bảng roomPlayer
+        var index = roomPlayer.indexOf(player)
         roomPlayer[index].func = func
 
+        var user = userList.find((e) => e.user = player.user)
         //find index of user
-        var indexUser = userList.indexOf(player.user)
-        socket.to(userList[indexUser].id).emit("S_startRoom", {bai: bai.id})
+        var indexUser = userList.indexOf(user)
+        check1("user receiver", userList[index])
+        if(userList[index] !== undefined){
+            socket.to(userList[indexUser].id).emit("S_startRoom", {bai: bai.id})
+        }
     }
+
+    function bossBai(func){{
+        var bai = funcList.find((e) => e.number == func)
+
+        // var player = playerOfRoom[random]
+        // //index là vị trí trong bảng roomPlayer
+        // var index = roomPlayer.indexOf(player)
+        // roomPlayer[index].func = func
+
+        // socket.emit('S_startRoomBoss', {
+        //     bai: bai.id
+        // })
+    }}
 })
 
-function check(tag){
-    console.log("--------------------------------------"+tag+"--------------------------------------")
-    console.log(userList)
+function check(value){
+    console.log(value)
 }
 
 function check_log_messageList(){
@@ -491,6 +531,16 @@ function check_log_messageList(){
 function check1(tag, data){
     console.log("--------------------------------------"+tag+"--------------------------------------")
     console.log(data)
+    console.log("----------------------------------------end----------------------------------------")
+}
+
+function check2(tag){
+    console.log("--------------------------------------"+tag+"--------------------------------------")
+    console.log("userList")
+    console.log(userList)
+    console.log("roomPlayer")
+    console.log(roomPlayer)
+    console.log("----------------------------------------end----------------------------------------")
 }
 
 server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
