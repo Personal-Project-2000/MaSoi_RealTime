@@ -1,6 +1,9 @@
 // connect firebase
+const { info } = require('console')
+const e = require('express')
 var FCM = require('fcm-node')
 const { networkInterfaces } = require('os')
+const { Socket } = require('socket.io')
 const { isBuffer } = require('util')
 var serviceAccount = require("./firebase.json")
 var fcm = new FCM(serviceAccount)
@@ -9,7 +12,18 @@ var fcm = new FCM(serviceAccount)
 var userList = []
 //sender || receiver || body || title 
 var messageList = []
-//user || ready || func || roomId
+//user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
+//potionHelp, potionDie dành cho người có chức vụ phù thủy
+//bitten là số con sói cắn
+//beBitten để xác định người có bài là sói đã thực hiện chưa
+//beVote là số người nghi ngờ user
+//isVote là user đã nghi ngờ người khác
+//patriarch là tưởng làng
+//hypnosis bị thôi niêm
+//love được cupid gán tình yêu
+//shot bị thợ săn ngắm trúng
+//protected được bảo vệ
+//agreeAdvocate -> 0: chưa xác nhận || 1: là đồng ý || 2: không đồng ý
 var roomPlayer = []
 //number || id || name
 var funcList = [
@@ -24,8 +38,10 @@ var funcList = [
     {number: 9, id: "61ea0fe1c550781bbe59b369", name: "Sói Trắng"},
     {number: 10, id: "61ea1029c550781bbe59b36b", name: "Dân Làng"}
 ]
-//roomId || time || code
+//roomId || time || voteTime || advocateTime || code || quantity
 var timeList = []
+//user || roomId
+var playerDieNew = []
 
 //config socket.io
 require('dotenv').config()
@@ -47,29 +63,23 @@ Array.prototype.unfilter = (callback) => {
     return s
 }
 
-setTimeout(myFunc, 1000)
-
-function myFunc(){
-    for(var item in timeList){
-        var timeNow = Math.floor((Date.now()/1000)/60)
-
-        if(item == timeNow){
-            check("next", "time");
-        }
-    }
-}
+var rangeTime = 10
 
 io.sockets.on("connection", (socket) => {
     console.log("user connect");
+
+    setInterval(function(){
+        timer() 
+    },1000)
 
     //client login || data: user, device
     socket.on('login', (data) => {
         var info = JSON.parse(data)
 
+        var user = userList.find((e) => e.user === info.user)
+
         //check user exist
-        if(userList.some((e) => {return e.user === info.user})){
-            //find user of userList
-            var user = userList.find((e) => e.user === info.user)
+        if(user !== undefined){
             //find index of user
             var index = userList.indexOf(user)
             //change status of user
@@ -99,7 +109,7 @@ io.sockets.on("connection", (socket) => {
 
         //notification client succes
         socket.emit('noti_login', {
-            message: "Thành công",
+            message: 1,
         })
     })
 
@@ -209,12 +219,25 @@ io.sockets.on("connection", (socket) => {
     socket.on("createRoom", (data) => {
         var info = JSON.parse(data)
 
-        //user || ready || func || roomId
+        //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
         roomPlayer.push({
             user: info.user,
             ready: true,
             func: "",
-            roomId: info.roomId
+            roomId: info.roomId,
+            patriarch: false,
+            hypnosis: false,
+            love: false,
+            shot: false,
+            protected: false,
+            die: false,
+            bitten: 0 ,
+            beBitten: false,
+            potionHelp: false, 
+            potionDie: false,
+            beVote: 0,
+            isVote: false,
+            agreeAdvocate: 0
         })
 
         check1("mảng người chơi trong đã vào phòng", roomPlayer)
@@ -239,10 +262,8 @@ io.sockets.on("connection", (socket) => {
 
         if(info.code === 2){
             var player2 = userList.find((e) => e.user === info.user)
-            //find index of user
-            var index1 = userList.indexOf(player2)
 
-            socket.to(userList[index1].id).emit("S_kickroom", {})
+            socket.to(player2.id).emit("S_kickroom", {})
         }
 
         if(info.code === 3){
@@ -250,10 +271,8 @@ io.sockets.on("connection", (socket) => {
 
             if(player !== undefined){
                 var user = userList.find((e) => e.user === player.user)
-                //find index of user
-                var indexNext = userList.indexOf(user)
 
-                socket.to(userList[indexNext].id).emit("S_bossout", {response: "ỷ quyền"})
+                socket.to(user.id).emit("S_bossout", {response: "ỷ quyền"})
             }
         }
 
@@ -262,10 +281,18 @@ io.sockets.on("connection", (socket) => {
         //Gửi các người chơi trong phòng
         for(const item of playerOfRoom){
             var user1 = userList.find((e) => e.user === item.user)
-            //find index of user
-            var index2 = userList.indexOf(user1)
 
-            socket.to(userList[index2].id).emit("S_exitroom", {user: info.user})
+            if(user1 !== undefined){
+                socket.to(user1.id).emit("S_exitroom", {user: info.user})
+            }
+        }
+
+        if(playerOfRoom.length == 0){
+            var infoRoom = timeList.find((e) => e.roomId === info.roomId)
+            if(infoRoom != null){
+                let vitri = timeList.indexOf(info)
+                timeList.splice(vitri, 1);
+            }
         }
 
         //Gửi các người chơi ở ngoài
@@ -285,10 +312,8 @@ io.sockets.on("connection", (socket) => {
         //gửi tất cả những người chơi trong phòng
         for(const item of playerOfRoom){
             var player = userList.find((e) => e.user === item.user)
-            //find index of user
-            var index = userList.indexOf(player)
 
-            socket.to(userList[index].id).emit("S_settingroom", {pass: info.pass, voteTime: info.voteTime, advocateTime: info.advocateTime})
+            socket.to(player.id).emit("S_settingroom", {pass: info.pass, voteTime: info.voteTime, advocateTime: info.advocateTime})
         }
 
         //gửi cho những người đang đăng nhập
@@ -314,14 +339,14 @@ io.sockets.on("connection", (socket) => {
 
         for(const item of playerOfRoom){
             var user = userList.find((e) => e.user === item.user)
-            //find index of user
-            var index = userList.indexOf(user)
 
-            socket.to(userList[index].id).emit("S_readyroom", {user: info.user, ready: playerOfRoom[index1].ready})
+            if(user !== undefined){
+                socket.to(user.id).emit("S_readyroom", {user: info.user, ready: playerOfRoom[index1].ready})
+            }
         }
     })
 
-    //data: roomId
+    //data: roomId || voteTime || advocateTime
     socket.on("start", (data) => {
         var info = JSON.parse(data)
 
@@ -329,7 +354,7 @@ io.sockets.on("connection", (socket) => {
 
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
 
-        bossBai(10)
+        bossBai(4)
 
         var quantity = playerOfRoom.length
         if(quantity >= 5){
@@ -447,10 +472,28 @@ io.sockets.on("connection", (socket) => {
         }
 
         for(var i = 0; i < playerOfRoom.length; i ++){
-            randomBai(i, playerOfRoom, 10)
+            randomBai(i, playerOfRoom, 5)
         }
-
-        timeList.push({roomId: info.roomId, time: Math.floor((Date.now()/1000)/60)+5, code: 0})
+        var players = roomPlayer.filter((e) => e.roomId == info.roomId)
+        var infomation = timeList.find((e) => e.roomId == info.roomId)
+        if(infomation != null){
+            var index = timeList.indexOf(infomation)
+            timeList[index].time = countTimeNext(0)
+            timeList[index].code = 0
+            timeList[index].voteTime = info.voteTime
+            timeList[index].advocateTime = info.advocateTime
+            timeList[index].quantity = players.length
+        }else{
+            timeList.push(
+                {
+                    roomId: info.roomId, 
+                    time: countTimeNext(0), 
+                    voteTime: info.voteTime,
+                    advocateTime: info.advocateTime,
+                    code: 0,
+                    quantity: players.length
+                })
+        }
         check1("Start_Time", timeList);
     })
 
@@ -463,18 +506,31 @@ io.sockets.on("connection", (socket) => {
         //trả về cho những player trong room
         for(const item of playerOfRoom){
             var user = userList.find((e) => e.user === item.user)
-            //find index of user
-            var position = userList.indexOf(user)
             
-            socket.to(userList[position].id).emit("S_joinroom", {user: info.user, userName: info.userName, userImg: info.userImg})
+            if(user !== undefined){
+                socket.to(user.id).emit("S_joinroom", {user: info.user, userName: info.userName, userImg: info.userImg})
+            }
         }
 
-        //user || ready || func || roomId
+        //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
         roomPlayer.push({
             user: info.user,
             ready: false,
             func: "",
-            roomId: info.roomId
+            roomId: info.roomId,
+            patriarch: false,
+            hypnosis: false,
+            love: false,
+            shot: false,
+            protected: false,
+            die: false,
+            bitten: 0 ,
+            beBitten: false,
+            potionHelp: false, 
+            potionDie: false,
+            beVote: 0,
+            isVote: false,
+            agreeAdvocate: 0
         })
 
         check2("joinroom")
@@ -487,6 +543,491 @@ io.sockets.on("connection", (socket) => {
         })
     })
 
+    //data: user || roomId
+    //roomPlayer: user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
+    socket.on("cupid", (data) => {
+        var info = JSON.parse(data)
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].love = true
+
+        //Lấy tất cả user bị gắn tình yêu trong phòng
+        var players = roomPlayer.filter((e) => e.roomId == info.roomId && e.love == true)
+        //kiểm tra đã đủ số lượng
+        if(players.length == 2){
+            //gửi nhận biết đến người có tình yêu
+            for(var item of players){
+                var playerLove = userList.find((e) => e.user == item.user)
+                if(playerLove !== undefined){
+                    socket.to(playerLove.id).emit("S_cupid", {playerList: players})
+                }
+            }
+
+            var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+            if(infoRoom.quantity < 15){
+                callNext(info.roomId, 11, info.voteTime, 2)
+            }else{
+                callNext(info.roomId, 8, info.voteTime, 1)
+            }
+        }
+    })
+
+    //data: user || roomId
+    socket.on("protected", (data) => {
+        var info = JSON.parse(data)
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].protected = true
+
+        callNext(info.roomId, 1, rangeTime, 1)
+    })
+
+    //data: user || userBitten || roomId
+    socket.on("wolf", (data) => {
+        var info = JSON.parse(data)
+
+        if(userBitten != ""){
+            //cập nhật người bị sói muốn giết
+            var playerBitten = roomPlayer.find((e) => e.user == info.userBitten)
+            var indexBitten = roomPlayer.indexOf(playerBitten)
+            roomPlayer[indexBitten].bitten ++
+        }
+
+        //cập nhật sói đã cắn
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].beBitten = true
+
+        //Lấy tất cả sói đã cắn trong phòng
+        var players = roomPlayer.filter((e) => e.roomId == info.roomId && e.beBitten == true)
+        //Lấy tất cả người bị cắn trong phòng
+        var playerBittens = roomPlayer.filter((e) => e.bitten > 0 && e.roomId == info.roomId)
+        var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+        if(infoRoom.quantity < 7){
+            //kiểm tra người bị cắn có được bảo vệ không
+            if(!playerBitten.protected){
+                playerDieNew.push({
+                    user: playerBitten.user,
+                    roomId: playerBitten.roomId
+                })
+            }
+
+            callNext(info.roomId, 2, rangeTime, 1)
+        }else if(infoRoom.quantity < 10){
+            if(players.length == 2){
+                if(playerBittens.length == 1){
+                    //kiểm tra người bị cắn có được bảo vệ không
+                    if(!playerBittens[0].protected){
+                        playerDieNew.push({
+                            user: playerBittens[0].user,
+                            roomId: playerBittens[0].roomId
+                        })
+                    }
+                }else{
+                    var random = Math.floor(Math.random() * playerBittens.length);
+                    //kiểm tra người bị cắn có được bảo vệ không
+                    if(!playerBittens[random].protected){
+                        playerDieNew.push({
+                            user: playerBittens[random].user,
+                            roomId: playerBittens[random].roomId
+                        })
+                    }
+                }
+
+                callNext(info.roomId, 2, rangeTime, 1)
+            }
+        }else if(infoRoom.quantity < 14){
+            if(players.length == 3){
+                if(playerBittens.length == 1){
+                    //kiểm tra người bị cắn có được bảo vệ không
+                    if(!playerBittens[0].protected){
+                        playerDieNew.push({
+                            user: playerBittens[0].user,
+                            roomId: playerBittens[0].roomId
+                        })
+                    }
+                }else{
+                    //kiểm tra ai bị cắn nhìu
+                    var max = 0
+                    for(item of playerBittens){
+                        if(item.bitten > max)
+                            max = item.bitten
+                    }
+
+                    //kiểm tra bị cắn đều không
+                    if(max == 1){
+                        var random = Math.floor(Math.random() * playerBittens.length);
+                        //kiểm tra người bị cắn có được bảo vệ không
+                        if(!playerBittens[random].protected){
+                            playerDieNew.push({
+                                user: playerBittens[random].user,
+                                roomId: playerBittens[random].roomId
+                            })
+                        }
+                    }else{
+                        var playerBittenMax = playerBittens.find((e) => e.bitten == max)
+                        //kiểm tra người bị cắn có được bảo vệ không
+                        if(!playerBittenMax.protected){
+                            playerDieNew.push({
+                                user: playerBittenMax.user,
+                                roomId: playerBittenMax.roomId
+                            })
+                        }
+                    }
+                }
+
+                callNext(info.roomId, 2, rangeTime, 1)
+            }
+        }else if(infoRoom.quantity < 17){
+            if(players.length == 4){
+                if(playerBittens.length == 1){
+                    //kiểm tra người bị cắn có được bảo vệ không
+                    if(!playerBittens[0].protected){
+                        playerDieNew.push({
+                            user: playerBittens[0].user,
+                            roomId: playerBittens[0].roomId
+                        })
+                    }
+                }else{
+                    //kiểm tra ai bị cắn nhìu
+                    var max = 0
+                    for(item of playerBittens){
+                        if(item.bitten > max)
+                            max = item.bitten
+                    }
+
+                    //kiểm tra bị cắn đều không
+                    switch(max){
+                        case 1:{
+                            var random = Math.floor(Math.random() * playerBittens.length);
+                            //kiểm tra người bị cắn có được bảo vệ không
+                            if(!playerBittens[random].protected){
+                                playerDieNew.push({
+                                    user: playerBittens[random].user,
+                                    roomId: playerBittens[random].roomId
+                                })
+                            }
+                        }break
+                        case 2:{
+                            if(playerBittens.length == 2){
+                                var random = Math.floor(Math.random() * playerBittens.length);
+                                //kiểm tra người bị cắn có được bảo vệ không
+                                if(!playerBittens[random].protected){
+                                    playerDieNew.push({
+                                        user: playerBittens[random].user,
+                                        roomId: playerBittens[random].roomId
+                                    })
+                                }
+                            }else{
+                                var playerBittenMax = playerBittens.find((e) => e.bitten == max)
+                                //kiểm tra người bị cắn có được bảo vệ không
+                                if(!playerBittenMax.protected){
+                                    playerDieNew.push({
+                                        user: playerBittenMax.user,
+                                        roomId: playerBittenMax.roomId
+                                    })
+                                }
+                            }
+                        }break
+                        case 3:{
+                            var playerBittenMax = playerBittens.find((e) => e.bitten == max)
+                            //kiểm tra người bị cắn có được bảo vệ không
+                            if(!playerBittenMax.protected){
+                                playerDieNew.push({
+                                    user: playerBittenMax.user,
+                                    roomId: playerBittenMax.roomId
+                                })
+                            }
+                        }break
+                    }
+                }
+
+                callNext(info.roomId, 2, rangeTime, 1)
+            }
+        }else if(infoRoom.quantity >= 17){
+            if(players.length == 5){
+                if(playerBittens.length == 1){
+                    //kiểm tra người bị cắn có được bảo vệ không
+                    if(!playerBittens[0].protected){
+                        playerDieNew.push({
+                            user: playerBittens[0].user,
+                            roomId: playerBittens[0].roomId
+                        })
+                    }
+                }else{
+                    //kiểm tra ai bị cắn nhìu
+                    var max = 0
+                    for(item of playerBittens){
+                        if(item.bitten > max)
+                            max = item.bitten
+                    }
+
+                    //kiểm tra bị cắn đều không
+                    switch(max){
+                        case 1:{
+                            var random = Math.floor(Math.random() * playerBittens.length);
+                            //kiểm tra người bị cắn có được bảo vệ không
+                            if(!playerBittens[random].protected){
+                                playerDieNew.push({
+                                    user: playerBittens[random].user,
+                                    roomId: playerBittens[random].roomId
+                                })
+                            }
+                        }break
+                        case 2:{
+                            if(playerBittens.length == 3){
+                                var playerBittenMaxs = playerBittens.filter((e) => e.bitten == max)
+                                var random = Math.floor(Math.random() * playerBittenMaxs.length);
+                                //kiểm tra người bị cắn có được bảo vệ không
+                                if(!playerBittenMaxs[random].protected){
+                                    playerDieNew.push({
+                                        user: playerBittenMaxs[random].user,
+                                        roomId: playerBittenMaxs[random].roomId
+                                    })
+                                }
+                            }else{
+                                var playerBittenMax = playerBittens.find((e) => e.bitten == max)
+                                //kiểm tra người bị cắn có được bảo vệ không
+                                if(!playerBittenMax.protected){
+                                    playerDieNew.push({
+                                        user: playerBittenMax.user,
+                                        roomId: playerBittenMax.roomId
+                                    })
+                                }
+                            }
+                        }break
+                        case 3: case 4:{
+                            var playerBittenMax = playerBittens.find((e) => e.bitten == max)
+                            //kiểm tra người bị cắn có được bảo vệ không
+                            if(!playerBittenMax.protected){
+                                playerDieNew.push({
+                                    user: playerBittenMax.user,
+                                    roomId: playerBittenMax.roomId
+                                })
+                            }
+                        }break
+                    }
+                }
+
+                callNext(info.roomId, 2, rangeTime, 1)
+            }
+        }
+
+        //restart việc cắn
+        for(var item of players){
+            var vitri = roomPlayer.indexOf(item)
+            roomPlayer[vitri].beBitten = false
+        }
+        for(var item of playerBittens){
+            var vitri = roomPlayer.indexOf(item)
+            roomPlayer[vitri].bitten = 0
+        }
+    })
+
+    //data: user || roomId
+    socket.on("prophesy", (data) => {
+        var info = JSON.parse(data)
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var answer = "không đúng"
+        if(player.fun == 1 || player.func == 9){
+            answer = "đúng"
+        }
+
+        socket.emit('S_prophesy', {
+            answer: answer
+        })
+
+        var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+        if(infoRoom.quantity < 7){
+            callNext(info.roomId, 11, info.voteTime, 2)
+        }else{
+            callNext(info.roomId, 4, info.voteTime, 1)
+        }
+    })
+
+    //data: user || userPotion || code -> 1: help, 2: die || roomId
+    socket.on("witch", (data) => {
+        var info = JSON.parse(data)
+
+        if(info.userPotion !== ""){
+            if(info.code == 1){
+                let playerPotion = playerDieNew.find((e) => e.user == info.userPotion)
+                var indexPotion = playerDieNew.indexOf(playerPotion)
+                playerDieNew.splice(indexPotion, 1);
+
+                let player= roomPlayer.find((e) => e.user == info.user)
+                var index = roomPlayer.indexOf(player)
+                roomPlayer[index].positionHelp = false
+            }else{
+                playerDieNew.push({
+                    user: info.userPotion,
+                    roomId: info.roomId
+                })
+
+                let player= roomPlayer.find((e) => e.user == info.user)
+                var index = roomPlayer.indexOf(player)
+                roomPlayer[index].potionDie = false
+            }
+        }
+
+        if(code == 1){
+            socket.emit('S_witch', {
+                message: "Bạn muốn giết ai không?"
+            })
+        }else{
+            var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+            if(infoRoom.quantity < 10){
+                callNext(info.roomId, 11, info.voteTime, 2)
+            }else{
+                callNext(info.roomId, 5, info.voteTime, 1)
+            }
+        }
+    })
+
+    //data: user || roomId
+    socket.on("flute", (data) => {
+        var info = JSON.parse(data)
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].hypnosis == true
+
+        var players = roomPlayer.filter((e) => e.hypnosis == true && e.roomId == info.roomId)
+        if(players.length % 2 == 0){
+            for(var item of players){
+                var user = userList.find((e) => e.user == item.user)
+                if(user !== undefined){
+                    socket.to(user.id).emit("S_flute", {playerList: players})
+                }
+            }
+        }
+
+        callNext(info.roomId, 11, info.voteTime, 1)
+    })
+
+    //data: user || roomId
+    socket.on("hunter", (data) => {
+        var info = JSON.parse(data)
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].shot == true
+
+        callNext(info.roomId, 6, info.voteTime, 1)
+    })
+
+    //data: user || userVote || roomId
+    socket.on("vote", (data) => {
+        var info = JSON.parse(data)
+
+        if(userVote !== ""){
+            var playerVote = roomPlayer.find((e) => e.user == info.userVote)
+            var indexVote = roomPlayer.indexOf(playerVote)
+            roomPlayer[indexVote].beVote ++
+        }
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].isVote = true
+
+        var playerAlive = players.filter((e) => e.die == false && e.roomId == info.roomId)
+
+        if(playerAlive.every((e) => e.isVote == true)){
+            var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+
+            var players = roomPlayer.filter((e) => e.roomId == roomId)
+            var playerAlive = players.filter((e) => e.die == false)
+
+            var max = 0
+            for(var item of playerAlive){
+                if(max < item.beVote)
+                    max = item.beVote
+            }
+
+            var playerVoteHeader = playerAlive.find((e) => e.beVote == max)
+            var indexPlayerHeader = roomPlayer.indexOf(playerVoteHeader)
+            roomPlayer[indexPlayerHeader].agreeAdvocate = 1
+
+            var playerNoVotes = playerAlive.filter((e) => e.beVote < max)
+            for(var item of playerNoVotes){
+                var indexNoVote = roomPlayer.indexOf(item)
+                roomPlayer[indexNoVote].beVote = 0
+            }
+
+            var playerVotes = playerAlive.filter((e) => e.beVote == max)
+
+            for(var item of playerAlive){
+                var indexPlayer = roomPlayer.indexOf(item)
+                roomPlayer[indexPlayer].isVote = false
+            }
+
+            if(playerVotes.length > 1)
+                callNext(infoRoom.roomId, 12, infoRoom.advocateTime, 3)
+            else
+                callNext(infoRoom.roomId, 12, infoRoom.advocateTime, 1)
+        }
+    })
+
+    //data user || roomId || agreeAdvocate -> 1: đồng ý, 2: không đồng ý
+    socket.on("advocate", (data) => {   
+        var info = JSON.parse(data)
+
+        var player = roomPlayer.find((e) => e.user == info.user)
+        var index = roomPlayer.indexOf(player)
+        roomPlayer[index].agreeAdvocate = info.agreeAdvocate
+
+        var playerAlive = roomPlayer.find((e) => e.roomId == info.roomId && e.die == false)
+
+        if(playerAlive.every((e) => {e.agreeAdvocate != 0})){
+            var agree = playerAlive.filter((e) => e.agreeAdvocate == 1)
+            var disAgree = playerAlive.filter((e) => e.agreeAdvocate == 2)
+            var playerVoteHeader = playerAlive.find((e) => e.beVote > 0)
+            var indexVoteHeader = roomPlayer.indexOf(playerVoteHeader)
+
+            if(agree.length-1 > disAgree){
+                roomPlayer[indexVoteHeader].die = true
+
+                for(var item of playerAlive){
+                    var user = userList.find((e) => e.user == item.user)
+                    if(user !== undefined){
+                        socket.to(user.id).emit("S_playerVote", {user: playerVoteHeader.user, message: "Đã chết rồi"})
+                    }
+                }
+            }else{
+                roomPlayer[indexVoteHeader].beVote = 0
+
+                for(var item of playerAlive){
+                    var user = userList.find((e) => e.user == item.user)
+                    if(user !== undefined){
+                        socket.to(user.id).emit("S_playerVote", {user: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
+                    }
+                } 
+            }
+
+            for(var item of playerAlive){
+                var indexPlayer = roomPlayer.indexOf(item)
+                roomPlayer[indexPlayer].agreeAdvocate = 0 
+            }
+
+
+            var playerVoteNext = playerAlive.find((e) => e.beVote > 0)
+
+            if(playerVoteNext != null){
+                var indexNext = roomPlayer.indexOf[playerVoteNext]
+                roomPlayer[indexNext].agreeAdvocate = 1
+            }
+
+            var playerVotes = playerAlive.filter((e) => e.beVote > 0)
+            if(playerVotes.length > 1)
+                callNext(info.roomId, 13, infoRoom.advocateTime, 3)
+            else
+                callNext(info.roomId, 3, rangeTime, 1)
+        }
+    })
+
     //ramdom là vị trí thứ trự trong phòng
     function randomBai(random, playerOfRoom, func){
         var bai = funcList.find((e) => e.number == func)
@@ -496,16 +1037,16 @@ io.sockets.on("connection", (socket) => {
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].func = func
 
-        var user = userList.find((e) => e.user = player.user)
-        //find index of user
-        var indexUser = userList.indexOf(user)
-        check1("user receiver", userList[index])
-        if(userList[index] !== undefined){
-            socket.to(userList[indexUser].id).emit("S_startRoom", {bai: bai.id})
+        check1("kiểm tra userList", userList)
+        var user = userList.find((e) => e.user == player.user)
+        check1("user receiver", user)
+        if(user != null){
+            check("có tồn tại nha")
+            socket.to(user.id).emit("S_startRoom", {bai: bai.id})
         }
     }
 
-    function bossBai(func){{
+    function bossBai(func){
         var bai = funcList.find((e) => e.number == func)
 
         // var player = playerOfRoom[random]
@@ -513,10 +1054,217 @@ io.sockets.on("connection", (socket) => {
         // var index = roomPlayer.indexOf(player)
         // roomPlayer[index].func = func
 
-        // socket.emit('S_startRoomBoss', {
-        //     bai: bai.id
-        // })
-    }}
+        socket.emit('S_startRoomBoss', {
+            bai: bai.id
+        })
+    }
+
+    function timer(){
+        for(var item of timeList){
+            if(Math.floor((Date.now()/1000)) === item.time){
+                switch(item.code){
+                    case 0:{
+                        callNext(item.roomId, 3, rangeTime, 1)
+                    }
+                    break
+                    case 1:{
+                        callNext(item.roomId, 1, rangeTime, 1)
+                    }
+                    break
+                    case 2:{
+                        if(item.quantity < 7)
+                            callNext(item.roomId, 2, item.voteTime, 4)
+                        else
+                            callNext(item.roomId, 2, rangeTime, 1)
+                    }
+                    break
+                    case 3:{
+                        if(item.quantity < 10)
+                            callNext(item.roomId, 4, item.voteTime, 4)
+                        else
+                            callNext(item.roomId, 4, rangeTime, 1)
+                    }
+                    break
+                    case 4:{
+                        callNext(item.roomId, 5, rangeTime, 1)
+                    }
+                    break
+                    case 5:{
+                        if(item.quantity < 15)
+                            callNext(item.roomId, 6, item.voteTime, 4)
+                        else
+                            callNext(item.roomId, 6, rangeTime, 1)
+                    }
+                    break
+                    case 6:{
+                        callNext(item.roomId, 8, rangeTime, 1)
+                    }
+                    break
+                    case 7:{
+                        callNext(item.roomId, 11, item.voteTime, 1)
+                    }
+                    break
+                    case 8:{
+                        var playerAlive = roomPlayer.find((e) => e.roomId == item.roomId && e.die == false)
+
+                        if(playerAlive.every((e) => e.agreeAdvocate == 0)){
+                            var max = 0
+                            for(var item of playerAlive){
+                                if(max < item.beVote)
+                                    max = item.beVote
+                            }
+
+                            var playerVoteHeader = playerAlive.find((e) => e.beVote == max)
+                            var indexPlayerHeader = roomPlayer.indexOf(playerVoteHeader)
+                            roomPlayer[indexPlayerHeader].agreeAdvocate = 1
+
+                            var playerNoVotes = playerAlive.filter((e) => e.beVote < max)
+                            for(var item of playerNoVotes){
+                                var indexNoVote = roomPlayer.indexOf(item)
+                                roomPlayer[indexNoVote].beVote = 0
+                            }
+
+                            for(var item of playerAlive){
+                                var indexPlayer = roomPlayer.indexOf(item)
+                                roomPlayer[indexPlayer].isVote = false
+                            }
+
+                            var playerVotes = roomPlayer.find((e) => e.roomId == item.roomId && e.beVote > 0 && e.die == false)
+                            if(playerVotes.length > 1)
+                                callNext(item.roomId, 12, item.advocateTime, 3)
+                            else
+                                callNext(item.roomId, 12, item.advocateTime, 1)
+                        }else{
+                            var agree = playerAlive.filter((e) => e.agreeAdvocate == 1)
+                            var disAgree = playerAlive.filter((e) => e.agreeAdvocate == 2)
+                            var playerVoteHeader = playerAlive.find((e) => e.beVote > 0)
+                            var indexVoteHeader = roomPlayer.indexOf(playerVoteHeader)
+                
+                            if(agree.length-1 > disAgree){
+                                roomPlayer[indexVoteHeader].die = true
+                
+                                for(var item of playerAlive){
+                                    var user = userList.find((e) => e.user == item.user)
+                                    if(user !== undefined){
+                                        socket.to(user.id).emit("S_playerVote", {user: playerVoteHeader.user, message: "Đã chết rồi"})
+                                    }
+                                }
+                            }else{
+                                roomPlayer[indexVoteHeader].beVote = 0
+                
+                                for(var item of playerAlive){
+                                    var user = userList.find((e) => e.user == item.user)
+                                    if(user !== undefined){
+                                        socket.to(user.id).emit("S_playerVote", {user: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
+                                    }
+                                } 
+                            }
+
+                            for(var item of playerAlive){
+                                var indexPlayer = roomPlayer.indexOf(item)
+                                roomPlayer[indexPlayer].agreeAdvocate = 0 
+                            }
+                
+                            var playerVoteNext = playerAlive.find((e) => e.beVote > 0)
+                
+                            if(playerVoteNext != null){
+                                var indexNext = roomPlayer.indexOf[playerVoteNext]
+                                roomPlayer[indexNext].agreeAdvocate = 1
+                            }
+
+                            var playerVotes = roomPlayer.find((e) => e.roomId == item.roomId && e.beVote > 0 && e.die == false)
+                            if(playerVotes.length > 1)
+                                callNext(item.roomId, 13, item.advocateTime, 3)
+                            else
+                                callNext(item.roomId, 13, item.advocateTime, 1)
+                        }
+                    }
+                    break
+                }
+
+                check1("Call", timeList)
+            }
+        }
+    }
+
+    //code -> 1: tăng tự nhiên || 2: tăng lên 8(vòng advocate) || 3: giữ nguyên || 4: tăng lên 7(vòng vote)
+    function callNext(roomId, number, range, code){
+        var timeNext = countTimeNext(range)
+        var infoRoom = timeList.find((e) => e.roomId == roomId) 
+        var indexRoom = timeList.indexOf(infoRoom)
+        if(code == 1)
+            if(timeList[indexRoom].code == 8)
+                timeList[indexRoom].code = 0
+            else
+                timeList[indexRoom].code ++
+        else if(code == 2)
+            timeList[indexRoom].code = 8
+
+        timeList[indexRoom].time = timeNext
+        call(info.roomId, number, infoRoom.code , timeNext)
+    }
+
+    //number -> 11: vòng vote || 12: vòng advocate
+    function call(roomId, number, code, timeNext){
+        var playerOfRoom = roomPlayer.filter((e) => e.roomId == roomId)
+        var infoBai = funcList.find((e) => e.number == number)
+
+        if(number < 11){
+            for(var item of playerOfRoom){
+                var user = userList.find((e) => e.user == item.user)
+                check1("checkuser",user)
+                socket.to(user.id).emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: null})
+            }
+        }else if(number == 11){
+            var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
+            var playerResult = []
+
+            for(var item of playerDies){
+                var playerDie = roomPlayer.find((e) => e.user == item.user)
+                if(playerDie.func == 7){
+                    var indexDie = roomPlayer.indexOf(playerDie)
+                    roomPlayer[indexDie].func == 1
+
+                    var infoUser = userList.find((e) => e.user == item.user)
+                    socket.to(infoUser.id).emit("S_changeFunc", {})
+                }else{
+                    playerResult.push({
+                        user: item.user,
+                        roomId: item.roomId
+                    })
+
+                    var indexDie = playerDieNew.indexOf(item)
+                    playerDieNew.splice(index, 1)
+
+                    var indexDie_roomPLayer = roomPlayer.indexOf(playerDie)
+                    roomPlayer[indexDie_roomPLayer].die = true
+                }
+            }
+
+            for(var item of playerOfRoom){
+                var user = userList.find((e) => e.user == item.user)
+                check1("checkuser",user)
+                socket.to(user.id).emit("S_call", {baiName: "Vote", baiId: "1", playerDie: playerResult})
+            }
+        }else if(number == 12){
+            var players = roomPlayer.filter((e) => e.roomId == roomId)
+            var playerAlive = players.filter((e) => e.die == false)
+
+            var playerVotes = playerAlive.filter((e) => e.beVote > 0)
+
+            for(var item of players){
+                var user = userList.find((e) => e.user == item.user)
+                if(user !== undefined){
+                    socket.to(user.id).emit("S_call", {baiName: "Advocate", baiId: "2", playerDie: playerVotes})
+                }
+            }
+        }
+    }
+
+    //Tính thời gian kế tiếp || hiện tại phép tính đc thực hiện theo giây
+    function countTimeNext(range){
+        return Math.floor((Date.now()/1000)) + range
+    }
 })
 
 function check(value){
