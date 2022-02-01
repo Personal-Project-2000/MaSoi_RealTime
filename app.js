@@ -63,7 +63,7 @@ Array.prototype.unfilter = (callback) => {
     return s
 }
 
-var rangeTime = 10
+var rangeTime = 1
 
 io.sockets.on("connection", (socket) => {
     console.log("user connect");
@@ -221,23 +221,7 @@ io.sockets.on("connection", (socket) => {
 
         //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
         roomPlayer.push({
-            user: info.user,
-            ready: true,
-            func: "",
-            roomId: info.roomId,
-            patriarch: false,
-            hypnosis: false,
-            love: false,
-            shot: false,
-            protected: false,
-            die: false,
-            bitten: 0 ,
-            beBitten: false,
-            potionHelp: false, 
-            potionDie: false,
-            beVote: 0,
-            isVote: false,
-            agreeAdvocate: 0
+            user: info.user, ready: true, func: "", roomId: info.roomId, patriarch: false, hypnosis: false, love: false, shot: false, protected: false, die: false, bitten: 0 , beBitten: false, potionHelp: false, potionDie: false, beVote: 0, isVote: false, agreeAdvocate: 0
         })
 
         check1("mảng người chơi trong đã vào phòng", roomPlayer)
@@ -354,10 +338,8 @@ io.sockets.on("connection", (socket) => {
 
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
 
-        bossBai(4)
-
         var quantity = playerOfRoom.length
-        if(quantity >= 5){
+        if(quantity >= 3){
             if(quantity < 7 ){
                 for(var i = 0; i < 3; i++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
@@ -471,8 +453,10 @@ io.sockets.on("connection", (socket) => {
             }
         }
 
+        playerOfRoom.splice(0, 1)
+
         for(var i = 0; i < playerOfRoom.length; i ++){
-            randomBai(i, playerOfRoom, 5)
+            randomBai(i, playerOfRoom, 2)
         }
         var players = roomPlayer.filter((e) => e.roomId == info.roomId)
         var infomation = timeList.find((e) => e.roomId == info.roomId)
@@ -514,23 +498,7 @@ io.sockets.on("connection", (socket) => {
 
         //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
         roomPlayer.push({
-            user: info.user,
-            ready: false,
-            func: "",
-            roomId: info.roomId,
-            patriarch: false,
-            hypnosis: false,
-            love: false,
-            shot: false,
-            protected: false,
-            die: false,
-            bitten: 0 ,
-            beBitten: false,
-            potionHelp: false, 
-            potionDie: false,
-            beVote: 0,
-            isVote: false,
-            agreeAdvocate: 0
+            user: info.user, ready: false, func: "", roomId: info.roomId, patriarch: false, hypnosis: false, love: false, shot: false, protected: false, die: false, bitten: 0 , beBitten: false, potionHelp: false, potionDie: false, beVote: 0, isVote: false, agreeAdvocate: 0
         })
 
         check2("joinroom")
@@ -539,7 +507,7 @@ io.sockets.on("connection", (socket) => {
         socket.broadcast.emit("S_joinroom1", {
             roomId: info.roomId,
             roomName: info.roomName,
-            quantity: playerOfRoom.length
+            quantity: playerOfRoom.length+1
         })
     })
 
@@ -566,9 +534,9 @@ io.sockets.on("connection", (socket) => {
 
             var infoRoom = timeList.find((e) => e.roomId == info.roomId)
             if(infoRoom.quantity < 15){
-                callNext(info.roomId, 11, info.voteTime, 2)
+                callNext(info.roomId, 11, info.voteTime, 1)
             }else{
-                callNext(info.roomId, 8, info.voteTime, 1)
+                callNext(info.roomId, 8, rangeTime, 1)
             }
         }
     })
@@ -577,9 +545,11 @@ io.sockets.on("connection", (socket) => {
     socket.on("protected", (data) => {
         var info = JSON.parse(data)
 
-        var player = roomPlayer.find((e) => e.user == info.user)
-        var index = roomPlayer.indexOf(player)
-        roomPlayer[index].protected = true
+        if(info.user !== ""){
+            var player = roomPlayer.find((e) => e.user == info.user)
+            var index = roomPlayer.indexOf(player)
+            roomPlayer[index].protected = true
+        }
 
         callNext(info.roomId, 1, rangeTime, 1)
     })
@@ -588,11 +558,13 @@ io.sockets.on("connection", (socket) => {
     socket.on("wolf", (data) => {
         var info = JSON.parse(data)
 
-        if(userBitten != ""){
+        if(info.userBitten != ""){
             //cập nhật người bị sói muốn giết
             var playerBitten = roomPlayer.find((e) => e.user == info.userBitten)
             var indexBitten = roomPlayer.indexOf(playerBitten)
             roomPlayer[indexBitten].bitten ++
+
+            check1("checkRoomPlayer", roomPlayer)
         }
 
         //cập nhật sói đã cắn
@@ -606,15 +578,17 @@ io.sockets.on("connection", (socket) => {
         var playerBittens = roomPlayer.filter((e) => e.bitten > 0 && e.roomId == info.roomId)
         var infoRoom = timeList.find((e) => e.roomId == info.roomId)
         if(infoRoom.quantity < 7){
-            //kiểm tra người bị cắn có được bảo vệ không
-            if(!playerBitten.protected){
-                playerDieNew.push({
-                    user: playerBitten.user,
-                    roomId: playerBitten.roomId
-                })
+            if(info.userBitten !== ""){
+                //kiểm tra người bị cắn có được bảo vệ không
+                if(!playerBitten.protected){
+                    playerDieNew.push({
+                        user: playerBitten.user,
+                        roomId: playerBitten.roomId
+                    })
+                }
             }
 
-            callNext(info.roomId, 2, rangeTime, 1)
+            callNext(info.roomId, 2, rangeTime, 4)
         }else if(infoRoom.quantity < 10){
             if(players.length == 2){
                 if(playerBittens.length == 1){
@@ -830,21 +804,27 @@ io.sockets.on("connection", (socket) => {
     socket.on("prophesy", (data) => {
         var info = JSON.parse(data)
 
-        var player = roomPlayer.find((e) => e.user == info.user)
-        var answer = "không đúng"
-        if(player.fun == 1 || player.func == 9){
-            answer = "đúng"
-        }
+        if(info.user !== ""){
+            var player = roomPlayer.find((e) => e.user == info.user)
+            check1("kiểm tra sói", player)
+            var answer = "Đó là dân làng"
+            if(player.func === 1 || player.func === 9){
+                answer = "Đúng là sói rồi đó"
+            }
 
-        socket.emit('S_prophesy', {
-            answer: answer
-        })
+            socket.emit('S_prophesy', {
+                answer: answer
+            })
+        }
 
         var infoRoom = timeList.find((e) => e.roomId == info.roomId)
         if(infoRoom.quantity < 7){
-            callNext(info.roomId, 11, info.voteTime, 2)
+            callNext(info.roomId, 11, info.voteTime, 1)
         }else{
-            callNext(info.roomId, 4, info.voteTime, 1)
+            if(infoRoom.quantity < 10)
+                callNext(info.roomId, 4, rangeTime, 4)
+            else
+                callNext(info.roomId, 4, rangeTime, 1)
         }
     })
 
@@ -880,9 +860,9 @@ io.sockets.on("connection", (socket) => {
         }else{
             var infoRoom = timeList.find((e) => e.roomId == info.roomId)
             if(infoRoom.quantity < 10){
-                callNext(info.roomId, 11, info.voteTime, 2)
+                callNext(info.roomId, 11, info.voteTime, 1)
             }else{
-                callNext(info.roomId, 5, info.voteTime, 1)
+                callNext(info.roomId, 5, rangeTime, 1)
             }
         }
     })
@@ -891,16 +871,18 @@ io.sockets.on("connection", (socket) => {
     socket.on("flute", (data) => {
         var info = JSON.parse(data)
 
-        var player = roomPlayer.find((e) => e.user == info.user)
-        var index = roomPlayer.indexOf(player)
-        roomPlayer[index].hypnosis == true
+        if(info.user !== ""){
+            var player = roomPlayer.find((e) => e.user == info.user)
+            var index = roomPlayer.indexOf(player)
+            roomPlayer[index].hypnosis == true
 
-        var players = roomPlayer.filter((e) => e.hypnosis == true && e.roomId == info.roomId)
-        if(players.length % 2 == 0){
-            for(var item of players){
-                var user = userList.find((e) => e.user == item.user)
-                if(user !== undefined){
-                    socket.to(user.id).emit("S_flute", {playerList: players})
+            var players = roomPlayer.filter((e) => e.hypnosis == true && e.roomId == info.roomId)
+            if(players.length % 2 == 0){
+                for(var item of players){
+                    var user = userList.find((e) => e.user == item.user)
+                    if(user !== undefined){
+                        socket.to(user.id).emit("S_flute", {playerList: players})
+                    }
                 }
             }
         }
@@ -916,14 +898,18 @@ io.sockets.on("connection", (socket) => {
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].shot == true
 
-        callNext(info.roomId, 6, info.voteTime, 1)
+        var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+        if(infoRoom.quantity < 15)
+            callNext(info.roomId, 6, rangeTime, 4)
+        else
+            callNext(info.roomId, 6, rangeTime, 1)
     })
 
     //data: user || userVote || roomId
     socket.on("vote", (data) => {
         var info = JSON.parse(data)
 
-        if(userVote !== ""){
+        if(info.userVote !== ""){
             var playerVote = roomPlayer.find((e) => e.user == info.userVote)
             var indexVote = roomPlayer.indexOf(playerVote)
             roomPlayer[indexVote].beVote ++
@@ -933,13 +919,10 @@ io.sockets.on("connection", (socket) => {
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].isVote = true
 
-        var playerAlive = players.filter((e) => e.die == false && e.roomId == info.roomId)
-
+        var playerAlive = roomPlayer.filter((e) => e.die == false && e.roomId == info.roomId)
+        check1("method: vote - check playerAlive", playerAlive)
         if(playerAlive.every((e) => e.isVote == true)){
             var infoRoom = timeList.find((e) => e.roomId == info.roomId)
-
-            var players = roomPlayer.filter((e) => e.roomId == roomId)
-            var playerAlive = players.filter((e) => e.die == false)
 
             var max = 0
             for(var item of playerAlive){
@@ -958,7 +941,7 @@ io.sockets.on("connection", (socket) => {
             }
 
             var playerVotes = playerAlive.filter((e) => e.beVote == max)
-
+            check1("method: vote - check playerVotes", playerVotes)
             for(var item of playerAlive){
                 var indexPlayer = roomPlayer.indexOf(item)
                 roomPlayer[indexPlayer].isVote = false
@@ -979,9 +962,10 @@ io.sockets.on("connection", (socket) => {
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].agreeAdvocate = info.agreeAdvocate
 
-        var playerAlive = roomPlayer.find((e) => e.roomId == info.roomId && e.die == false)
+        var playerAlive = roomPlayer.filter((e) => e.roomId == info.roomId && e.die == false)
 
-        if(playerAlive.every((e) => {e.agreeAdvocate != 0})){
+        check1("method: advocate - check playerAlive", playerAlive)
+        if(playerAlive.every((e) => e.agreeAdvocate != 0)){
             var agree = playerAlive.filter((e) => e.agreeAdvocate == 1)
             var disAgree = playerAlive.filter((e) => e.agreeAdvocate == 2)
             var playerVoteHeader = playerAlive.find((e) => e.beVote > 0)
@@ -993,16 +977,24 @@ io.sockets.on("connection", (socket) => {
                 for(var item of playerAlive){
                     var user = userList.find((e) => e.user == item.user)
                     if(user !== undefined){
-                        socket.to(user.id).emit("S_playerVote", {user: playerVoteHeader.user, message: "Đã chết rồi"})
+                        if(user.id === socket.id)
+                            socket.emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã chết rồi"})
+                        else
+                            socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã chết rồi"})
                     }
                 }
+
+                playerAlive = roomPlayer.filter((e) => e.roomId == info.roomId && e.die == false)
             }else{
                 roomPlayer[indexVoteHeader].beVote = 0
 
                 for(var item of playerAlive){
                     var user = userList.find((e) => e.user == item.user)
                     if(user !== undefined){
-                        socket.to(user.id).emit("S_playerVote", {user: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
+                        if(user.id === socket.id)
+                            socket.emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
+                        else
+                            socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
                     }
                 } 
             }
@@ -1014,7 +1006,7 @@ io.sockets.on("connection", (socket) => {
 
 
             var playerVoteNext = playerAlive.find((e) => e.beVote > 0)
-
+            check1("method: advocate - check playerVoteNext", playerVoteNext)
             if(playerVoteNext != null){
                 var indexNext = roomPlayer.indexOf[playerVoteNext]
                 roomPlayer[indexNext].agreeAdvocate = 1
@@ -1042,26 +1034,17 @@ io.sockets.on("connection", (socket) => {
         check1("user receiver", user)
         if(user != null){
             check("có tồn tại nha")
-            socket.to(user.id).emit("S_startRoom", {bai: bai.id})
+            if(user.id === socket.id)
+                socket.emit("S_startRoom", {bai: bai.id})
+            else
+                socket.to(user.id).emit("S_startRoom", {bai: bai.id})
         }
-    }
-
-    function bossBai(func){
-        var bai = funcList.find((e) => e.number == func)
-
-        // var player = playerOfRoom[random]
-        // //index là vị trí trong bảng roomPlayer
-        // var index = roomPlayer.indexOf(player)
-        // roomPlayer[index].func = func
-
-        socket.emit('S_startRoomBoss', {
-            bai: bai.id
-        })
     }
 
     function timer(){
         for(var item of timeList){
-            if(Math.floor((Date.now()/1000)) === item.time){
+            if(Math.floor((Date.now()/1000/60)) === item.time){
+                check1("Call", timeList)
                 switch(item.code){
                     case 0:{
                         callNext(item.roomId, 3, rangeTime, 1)
@@ -1073,7 +1056,7 @@ io.sockets.on("connection", (socket) => {
                     break
                     case 2:{
                         if(item.quantity < 7)
-                            callNext(item.roomId, 2, item.voteTime, 4)
+                            callNext(item.roomId, 2, rangeTime, 4)
                         else
                             callNext(item.roomId, 2, rangeTime, 1)
                     }
@@ -1105,7 +1088,7 @@ io.sockets.on("connection", (socket) => {
                     }
                     break
                     case 8:{
-                        var playerAlive = roomPlayer.find((e) => e.roomId == item.roomId && e.die == false)
+                        var playerAlive = roomPlayer.filter((e) => e.roomId == item.roomId && e.die == false)
 
                         if(playerAlive.every((e) => e.agreeAdvocate == 0)){
                             var max = 0
@@ -1115,8 +1098,10 @@ io.sockets.on("connection", (socket) => {
                             }
 
                             var playerVoteHeader = playerAlive.find((e) => e.beVote == max)
-                            var indexPlayerHeader = roomPlayer.indexOf(playerVoteHeader)
-                            roomPlayer[indexPlayerHeader].agreeAdvocate = 1
+                            if(playerVoteHeader != null){
+                                var indexPlayerHeader = roomPlayer.indexOf(playerVoteHeader)
+                                roomPlayer[indexPlayerHeader].agreeAdvocate = 1
+                            }
 
                             var playerNoVotes = playerAlive.filter((e) => e.beVote < max)
                             for(var item of playerNoVotes){
@@ -1129,11 +1114,11 @@ io.sockets.on("connection", (socket) => {
                                 roomPlayer[indexPlayer].isVote = false
                             }
 
-                            var playerVotes = roomPlayer.find((e) => e.roomId == item.roomId && e.beVote > 0 && e.die == false)
+                            var playerVotes = roomPlayer.filter((e) => e.roomId == item.roomId && e.beVote > 0 && e.die == false)
                             if(playerVotes.length > 1)
                                 callNext(item.roomId, 12, item.advocateTime, 3)
                             else
-                                callNext(item.roomId, 12, item.advocateTime, 1)
+                                callNext(item.roomId, 12, rangeTime, 1)
                         }else{
                             var agree = playerAlive.filter((e) => e.agreeAdvocate == 1)
                             var disAgree = playerAlive.filter((e) => e.agreeAdvocate == 2)
@@ -1172,7 +1157,7 @@ io.sockets.on("connection", (socket) => {
                                 roomPlayer[indexNext].agreeAdvocate = 1
                             }
 
-                            var playerVotes = roomPlayer.find((e) => e.roomId == item.roomId && e.beVote > 0 && e.die == false)
+                            var playerVotes = roomPlayer.filter((e) => e.roomId == item.roomId && e.beVote > 0 && e.die == false)
                             if(playerVotes.length > 1)
                                 callNext(item.roomId, 13, item.advocateTime, 3)
                             else
@@ -1181,13 +1166,14 @@ io.sockets.on("connection", (socket) => {
                     }
                     break
                 }
-
-                check1("Call", timeList)
             }
         }
     }
 
     //code -> 1: tăng tự nhiên || 2: tăng lên 8(vòng advocate) || 3: giữ nguyên || 4: tăng lên 7(vòng vote)
+    //number: lá bài được gọi hiện tại
+    //range: thời gian lá bài thực hiện
+    //code: nhằm timer xác định sau lá bài kế lá bài hiện tại
     function callNext(roomId, number, range, code){
         var timeNext = countTimeNext(range)
         var infoRoom = timeList.find((e) => e.roomId == roomId) 
@@ -1199,13 +1185,18 @@ io.sockets.on("connection", (socket) => {
                 timeList[indexRoom].code ++
         else if(code == 2)
             timeList[indexRoom].code = 8
+        else if(code == 4)
+            timeList[indexRoom].code = 7
+
+        check1("kiểm tra lá bài kế của phòng "+roomId, timeList[indexRoom])
 
         timeList[indexRoom].time = timeNext
-        call(info.roomId, number, infoRoom.code , timeNext)
+        call(roomId, number)
     }
 
     //number -> 11: vòng vote || 12: vòng advocate
-    function call(roomId, number, code, timeNext){
+    function call(roomId, number){
+        check1("checkcall",roomId+" || "+number)
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == roomId)
         var infoBai = funcList.find((e) => e.number == number)
 
@@ -1213,7 +1204,11 @@ io.sockets.on("connection", (socket) => {
             for(var item of playerOfRoom){
                 var user = userList.find((e) => e.user == item.user)
                 check1("checkuser",user)
-                socket.to(user.id).emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: null})
+                if(user != null)
+                    if(user.id == socket.id)
+                        socket.emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: null, playerAlive: null, playerVote: null})
+                    else
+                        socket.to(user.id).emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: null, playerAlive: null, playerVote: null})
             }
         }else if(number == 11){
             var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
@@ -1234,36 +1229,47 @@ io.sockets.on("connection", (socket) => {
                     })
 
                     var indexDie = playerDieNew.indexOf(item)
-                    playerDieNew.splice(index, 1)
+                    playerDieNew.splice(indexDie, 1)
 
                     var indexDie_roomPLayer = roomPlayer.indexOf(playerDie)
                     roomPlayer[indexDie_roomPLayer].die = true
                 }
             }
 
+            var playerAlive = roomPlayer.filter((e) => e.die == false && e.roomId == roomId)
+
+            check1("function: call - check playerResult", playerResult)
+            check1("function: call - check playerAlive", playerAlive)
             for(var item of playerOfRoom){
                 var user = userList.find((e) => e.user == item.user)
                 check1("checkuser",user)
-                socket.to(user.id).emit("S_call", {baiName: "Vote", baiId: "1", playerDie: playerResult})
+                if(user != null)
+                    if(user.id == socket.id)
+                        socket.emit("S_call", {baiName: "Vote", baiId: "1", playerDie: playerResult, playerAlive: playerAlive, playerVote: null})
+                    else
+                        socket.to(user.id).emit("S_call", {baiName: "Vote", baiId: "1", playerDie: playerResult, playerAlive: playerAlive, playerVote: null})
             }
         }else if(number == 12){
             var players = roomPlayer.filter((e) => e.roomId == roomId)
             var playerAlive = players.filter((e) => e.die == false)
 
             var playerVotes = playerAlive.filter((e) => e.beVote > 0)
-
+            check1("function: call - check playerVotes - number 12", playerVotes)
             for(var item of players){
                 var user = userList.find((e) => e.user == item.user)
                 if(user !== undefined){
-                    socket.to(user.id).emit("S_call", {baiName: "Advocate", baiId: "2", playerDie: playerVotes})
+                    if(user.id == socket.id)
+                        socket.emit("S_call", {baiName: "Advocate", baiId: "2", playerDie: null, playerAlive: null, playerVote: playerVotes})
+                    else
+                        socket.to(user.id).emit("S_call", {baiName: "Advocate", baiId: "2", playerDie: null, playerAlive: null, playerVote: playerVotes})
                 }
             }
         }
     }
 
-    //Tính thời gian kế tiếp || hiện tại phép tính đc thực hiện theo giây
+    //Tính thời gian kế tiếp || hiện tại phép tính đc thực hiện theo phút
     function countTimeNext(range){
-        return Math.floor((Date.now()/1000)) + range
+        return Math.floor((Date.now()/1000/60)) + range
     }
 })
 
@@ -1277,9 +1283,9 @@ function check_log_messageList(){
 }
 
 function check1(tag, data){
-    console.log("--------------------------------------"+tag+"--------------------------------------")
+    console.log("///////////---------------------------"+tag+"------------------------>>>>>>>>>>>>>>")
     console.log(data)
-    console.log("----------------------------------------end----------------------------------------")
+    console.log("<<<<<<<<<<<<<<------------------------------end--------------------------//////////")
 }
 
 function check2(tag){
