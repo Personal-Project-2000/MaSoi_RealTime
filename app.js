@@ -1,10 +1,5 @@
 // connect firebase
-const { info } = require('console')
-const e = require('express')
 var FCM = require('fcm-node')
-const { networkInterfaces } = require('os')
-const { Socket } = require('socket.io')
-const { isBuffer } = require('util')
 var serviceAccount = require("./firebase.json")
 var fcm = new FCM(serviceAccount)
 
@@ -135,7 +130,8 @@ io.sockets.on("connection", (socket) => {
 
     //client signout
     socket.on("signout", () =>{
-        let index = userList.indexOf(socket.id)
+        var user = userList.find((e) => e.id == socket.id)
+        let index = userList.indexOf(user)
         userList.splice(index, 1);
 
         check1("signout", userList)
@@ -346,7 +342,8 @@ io.sockets.on("connection", (socket) => {
                     if(i == 0){
                         randomBai(random, playerOfRoom, 1)
                     }else if(i == 1){
-                        randomBai(random, playerOfRoom, 2)
+                        //kiểm tra tình yêu
+                        randomBai(random, playerOfRoom, 8)
                     }else if(i == 2){
                         randomBai(random, playerOfRoom, 3)
                     }
@@ -462,7 +459,7 @@ io.sockets.on("connection", (socket) => {
         var infomation = timeList.find((e) => e.roomId == info.roomId)
         if(infomation != null){
             var index = timeList.indexOf(infomation)
-            timeList[index].time = countTimeNext(0)
+            timeList[index].time = countTimeNext(1)
             timeList[index].code = 0
             timeList[index].voteTime = info.voteTime
             timeList[index].advocateTime = info.advocateTime
@@ -471,7 +468,7 @@ io.sockets.on("connection", (socket) => {
             timeList.push(
                 {
                     roomId: info.roomId, 
-                    time: countTimeNext(0), 
+                    time: countTimeNext(1), 
                     voteTime: info.voteTime,
                     advocateTime: info.advocateTime,
                     code: 0,
@@ -528,7 +525,10 @@ io.sockets.on("connection", (socket) => {
             for(var item of players){
                 var playerLove = userList.find((e) => e.user == item.user)
                 if(playerLove !== undefined){
-                    socket.to(playerLove.id).emit("S_cupid", {playerList: players})
+                    if(playerLove.id == socket.id)
+                        socket.emit("S_cupid", {playerList: players})
+                    else
+                        socket.to(playerLove.id).emit("S_cupid", {playerList: players})
                 }
             }
 
@@ -587,8 +587,10 @@ io.sockets.on("connection", (socket) => {
                     })
                 }
             }
-
-            callNext(info.roomId, 2, rangeTime, 4)
+            //kiểm tra tình yêu
+            callNext(info.roomId, 8, rangeTime, 4)
+            //kiểm tra tiên tri
+            //callNext(info.roomId, 2, rangeTime, 4)
         }else if(infoRoom.quantity < 10){
             if(players.length == 2){
                 if(playerBittens.length == 1){
@@ -853,7 +855,7 @@ io.sockets.on("connection", (socket) => {
             }
         }
 
-        if(code == 1){
+        if(info.code == 1){
             socket.emit('S_witch', {
                 message: "Bạn muốn giết ai không?"
             })
@@ -874,20 +876,22 @@ io.sockets.on("connection", (socket) => {
         if(info.user !== ""){
             var player = roomPlayer.find((e) => e.user == info.user)
             var index = roomPlayer.indexOf(player)
-            roomPlayer[index].hypnosis == true
+            roomPlayer[index].hypnosis = true
 
             var players = roomPlayer.filter((e) => e.hypnosis == true && e.roomId == info.roomId)
             if(players.length % 2 == 0){
                 for(var item of players){
                     var user = userList.find((e) => e.user == item.user)
                     if(user !== undefined){
-                        socket.to(user.id).emit("S_flute", {playerList: players})
+                        if(user.id == socket.id)
+                            socket.emit("S_flute", {playerList: players})
+                        else
+                            socket.to(user.id).emit("S_flute", {playerList: players})
                     }
                 }
+                callNext(info.roomId, 11, info.voteTime, 1)
             }
         }
-
-        callNext(info.roomId, 11, info.voteTime, 1)
     })
 
     //data: user || roomId
@@ -896,7 +900,7 @@ io.sockets.on("connection", (socket) => {
 
         var player = roomPlayer.find((e) => e.user == info.user)
         var index = roomPlayer.indexOf(player)
-        roomPlayer[index].shot == true
+        roomPlayer[index].shot = true
 
         var infoRoom = timeList.find((e) => e.roomId == info.roomId)
         if(infoRoom.quantity < 15)
@@ -962,7 +966,8 @@ io.sockets.on("connection", (socket) => {
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].agreeAdvocate = info.agreeAdvocate
 
-        var playerAlive = roomPlayer.filter((e) => e.roomId == info.roomId && e.die == false)
+        var playerOfRoom = roomPlayer.filter((e) => e.roomId == info.roomId)
+        var playerAlive = playerOfRoom.filter((e) => e.die == false)
 
         check1("method: advocate - check playerAlive", playerAlive)
         if(playerAlive.every((e) => e.agreeAdvocate != 0)){
@@ -970,7 +975,7 @@ io.sockets.on("connection", (socket) => {
             var disAgree = playerAlive.filter((e) => e.agreeAdvocate == 2)
             var playerVoteHeader = playerAlive.find((e) => e.beVote > 0)
             var indexVoteHeader = roomPlayer.indexOf(playerVoteHeader)
-
+ 
             if(agree.length-1 > disAgree){
                 roomPlayer[indexVoteHeader].die = true
 
@@ -978,9 +983,9 @@ io.sockets.on("connection", (socket) => {
                     var user = userList.find((e) => e.user == item.user)
                     if(user !== undefined){
                         if(user.id === socket.id)
-                            socket.emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã chết rồi"})
+                            socket.emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã chết rồi", isDie: true})
                         else
-                            socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã chết rồi"})
+                            socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã chết rồi", isDie: true})
                     }
                 }
 
@@ -992,18 +997,22 @@ io.sockets.on("connection", (socket) => {
                     var user = userList.find((e) => e.user == item.user)
                     if(user !== undefined){
                         if(user.id === socket.id)
-                            socket.emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
+                            socket.emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết", isDie: false})
                         else
-                            socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết"})
+                            socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết", isDie: false})
                     }
                 } 
+            }
+
+            var switchR = switchResult(playerOfRoom, playerAlive)
+            if(switchR == 1){
+                return
             }
 
             for(var item of playerAlive){
                 var indexPlayer = roomPlayer.indexOf(item)
                 roomPlayer[indexPlayer].agreeAdvocate = 0 
             }
-
 
             var playerVoteNext = playerAlive.find((e) => e.beVote > 0)
             check1("method: advocate - check playerVoteNext", playerVoteNext)
@@ -1028,12 +1037,10 @@ io.sockets.on("connection", (socket) => {
         //index là vị trí trong bảng roomPlayer
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].func = func
-
-        check1("kiểm tra userList", userList)
+        
         var user = userList.find((e) => e.user == player.user)
         check1("user receiver", user)
         if(user != null){
-            check("có tồn tại nha")
             if(user.id === socket.id)
                 socket.emit("S_startRoom", {bai: bai.id})
             else
@@ -1054,11 +1061,12 @@ io.sockets.on("connection", (socket) => {
                         callNext(item.roomId, 1, rangeTime, 1)
                     }
                     break
+                    //kiểm tra tình yêu
                     case 2:{
                         if(item.quantity < 7)
-                            callNext(item.roomId, 2, rangeTime, 4)
+                            callNext(item.roomId, 8, rangeTime, 4)
                         else
-                            callNext(item.roomId, 2, rangeTime, 1)
+                            callNext(item.roomId, 8, rangeTime, 1)
                     }
                     break
                     case 3:{
@@ -1201,14 +1209,16 @@ io.sockets.on("connection", (socket) => {
         var infoBai = funcList.find((e) => e.number == number)
 
         if(number < 11){
+            var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
+
             for(var item of playerOfRoom){
                 var user = userList.find((e) => e.user == item.user)
                 check1("checkuser",user)
                 if(user != null)
                     if(user.id == socket.id)
-                        socket.emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: null, playerAlive: null, playerVote: null})
+                        socket.emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: playerDies, playerAlive: null, playerVote: null})
                     else
-                        socket.to(user.id).emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: null, playerAlive: null, playerVote: null})
+                        socket.to(user.id).emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: playerDies, playerAlive: null, playerVote: null})
             }
         }else if(number == 11){
             var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
@@ -1223,6 +1233,34 @@ io.sockets.on("connection", (socket) => {
                     var infoUser = userList.find((e) => e.user == item.user)
                     socket.to(infoUser.id).emit("S_changeFunc", {})
                 }else{
+                    if(playerDie.func == 5){
+                        var playerAliveShot = roomPlayer.find((e) => e.roomId == roomId && e.die == false && e.shot == true)
+                        check1("method: call - check playerAliveShot", playerAliveShot)
+                        if(playerAliveShot != null){
+                            var indexShot = roomPlayer.indexOf(playerAliveShot)
+                            roomPlayer[indexShot].die = true
+
+                            playerResult.push({
+                                user: playerAliveShot.user,
+                                roomId: playerAliveShot.roomId
+                            })
+                        } 
+                    }
+
+                    if(playerDie.love == true){
+                        var playerAliveLove = roomPlayer.find((e) => e.roomId == roomId && e.die == false && e.love == true && e.user != playerDie.user)
+                        check1("method: call - check playerAliveLove", playerAliveLove)
+                        if(playerAliveLove != null){
+                            var indexLove = roomPlayer.indexOf(playerAliveLove)
+                            roomPlayer[indexLove].die = true
+
+                            playerResult.push({
+                                user: playerAliveLove.user,
+                                roomId: playerAliveLove.roomId
+                            })
+                        }
+                    }
+
                     playerResult.push({
                         user: item.user,
                         roomId: item.roomId
@@ -1240,6 +1278,12 @@ io.sockets.on("connection", (socket) => {
 
             check1("function: call - check playerResult", playerResult)
             check1("function: call - check playerAlive", playerAlive)
+
+            var switchR = switchResult(playerOfRoom, playerAlive)
+            if(switchR == 1){
+                return
+            }
+
             for(var item of playerOfRoom){
                 var user = userList.find((e) => e.user == item.user)
                 check1("checkuser",user)
@@ -1270,6 +1314,47 @@ io.sockets.on("connection", (socket) => {
     //Tính thời gian kế tiếp || hiện tại phép tính đc thực hiện theo phút
     function countTimeNext(range){
         return Math.floor((Date.now()/1000/60)) + range
+    }
+
+    function switchResult(playerOfRoom, playerAlive){
+        var playerAliveHypnosis = playerAlive.filter((e) => e.hypnosis == true)
+        if(playerAliveHypnosis.length == playerAlive.length-1){
+            sendResult(playerOfRoom, "Người thổi sáo chiến thắng")
+
+            return 1
+        }
+
+        if(playerAlive.length == 2){
+            if(playerAlive.every((e) => e.love == true)){
+                sendResult(playerOfRoom, "Phe tình yêu chiến thắng")
+                return 1
+            }
+        }
+
+        var playerWoft = playerAlive.filter((e) => e.func == 1 || e.func == 9)
+        var playerPerson = playerAlive.filter((e) => e.func != 1 && e.func == 9)
+        if(playerWoft.length == 0){
+            sendResult(playerOfRoom, "Phe dân làng chiến thắng")
+            return 1
+        }
+
+        if(playerWoft.length >= playerPerson.length){
+            sendResult(playerOfRoom, "Pheo sói chiến thắng")
+            return 1
+        }
+        return 0
+    }
+
+    function sendResult(players, notification){
+        for(var item of players){
+            var user = userList.find((e) => e.user == item.user)
+            check1("checkuser",user)
+            if(user != null)
+                if(user.id == socket.id)
+                    socket.emit("S_call", {baiName: "Result", baiId: "3", notification: notification, playerDie: null, playerAlive: null, playerVote: null})
+                else
+                    socket.to(user.id).emit("S_call", {baiName: "Result", baiId: "3", notification: notification, playerDie: null, playerAlive: null, playerVote: null})
+        }
     }
 })
 
