@@ -3,10 +3,12 @@ var FCM = require('fcm-node')
 var serviceAccount = require("./firebase.json")
 var fcm = new FCM(serviceAccount)
 
-//user || device || status || id
+//user || device || status || id || name
 var userList = []
+
 //sender || receiver || body || title 
 var messageList = []
+
 //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
 //potionHelp, potionDie dành cho người có chức vụ phù thủy
 //bitten là số con sói cắn
@@ -20,6 +22,7 @@ var messageList = []
 //protected được bảo vệ
 //agreeAdvocate -> 0: chưa xác nhận || 1: là đồng ý || 2: không đồng ý
 var roomPlayer = []
+
 //number || id || name
 var funcList = [
     {number: 1, id: "61e675a18f96beab7215afee", name: "Sói"},
@@ -33,10 +36,132 @@ var funcList = [
     {number: 9, id: "61ea0fe1c550781bbe59b369", name: "Sói Trắng"},
     {number: 10, id: "61ea1029c550781bbe59b36b", name: "Dân Làng"}
 ]
-//roomId || time || voteTime || advocateTime || code || quantity
+
+//roomId || time || voteTime || advocateTime || code || quantity || historyId
 var timeList = []
+
 //user || roomId
 var playerDieNew = []
+
+//beBitten có giết người hay không => true là có || false là không
+//sau phrase1 là những người có thẻ bài sói
+//sau phrase2 là nạn nhận sói giết
+//có 3 phrase
+var storyWoft = [
+    {beBitten: true, number: 1, phrase1: "Khi màn đêm vừa buôn xuống bầy sói(", phrase2: ") cảm thấy", phrase3: "khó ưa quá vì thế đêm nay chúng đã quyết xơi"},
+    {beBitten: true, number: 2, phrase1: "Bọn sói(", phrase2: ") thật xảo nguyệt cảm thấy", phrase3: "quá là chước mắt với khả năng nói nhiều của hắn nên bọn sói đã quyết định xơi"},
+    {beBitten: true, number: 3, phrase1: "Bọn sói(", phrase2: ") đã biết như vậy nên hôm qua sói đã không đưa ra quyết định nhanh chóng mà lượn lờ từng người xem ai thú vị, sau một lúc lượn lờ thì bọn chúng đã chọn", phrase3: "lên thớt, với sự bất phản kháng thì người ấy đã đi xa"},
+    {beBitten: true, number: 4, phrase1: "Mặt trời vừa xuống núi bầy sói trong làng đã hiện nguyên hình(", phrase2: ") lúc sáng bọn chúng đã xác định mục tiêu là", phrase3: "nên mặt trời vừa biến mất bọn chúng đã tấn công"},
+    {beBitten: true, number: 5, phrase1: "Hoàng hồn vừa bắt đầu bầy sói(", phrase2: ") đã tập hợp lại để rình mò xem đêm nay ai sẽ là mục tiêu thì đúng lúc đó", phrase3: "đi ngang nên bầy sói đã xơi người xấu số này"},
+    {beBitten: false, number: 1, phrase1: "Buổi sáng bọn sói(", phrase2: ") đã cùng mọi người trong làng làm việc rã người nên đêm nay bọn chúng quyết nghỉ ngơi mà không tấn công ai.", phrase3: ""},
+    {beBitten: false, number: 2, phrase2: "Bầy(", phrase2: ") sói hôm nay nghe một câu chuyện bi thương và bọn chúng đã có một lòng thương cảm nên đêm nay bọn chúng quyết định không tấn công", phrase3: ""}
+]
+
+//người bị tấn công sẽ được bảo vệ 
+//có 1 phrase
+var storyWoftProtected = [
+    {number: 1, phrase1: "nhưng xui sao bọn sói lại không biết người Bảo Vệ làng hôm nay chọn nơi này nên lũ sói đã bị anh Bảo Vệ làm cho một trận nên thân."},
+    {number: 2, phrase1: "bọn sói đã không biết cái quyết định của người Bảo vệ đêm nay lại là người bọn chúng muốn tấn công và thế là bọn chúng đã không toàn mạng trở về"}
+]
+
+//die thể hiện người giữ lá bài bảo vệ còn sống hay chết => false: sống || true: chết
+//sau phrase1 là tên người giữ thẻ bài bảo vệ
+//sau phrase2 là người đc bảo vệ
+//có 3 phrase
+var storyGuard = [
+    {die: false, number: 1, phrase1: "Đêm nay người Bảo Vệ(", phrase2: ") của làng cảm thấy khá là bất bình nên đã bảo vệ", phrase3: ""},
+    {die: false, number: 2, phrase1: "Quá là hoang mang nên người Bảo Vệ(", phrase2: ") của làng cảm thấy khá là bất bình nên đã bảo vệ", phrase3: ""},
+    {die: false, number: 3, phrase1: "Bắt đầu hoàng hôn buôn xuống người Bảo Vệ(", phrase2: ") hôm nay bỗng dưng cảm thấy 1 điều bất an nên đã sang nhà", phrase3: "để bảo vệ"},
+    {die: true, number: 1, phrase1: "Sự ra đi thầm lặng của người Bảo Vệ sẽ khiến đêm nay làng có một kết cục bi thảm", phrase2: "", phrase3: ""},
+    {die: true, number: 2, phrase1: "Đêm nay làng sẽ có một án thảm khóc bởi vì người giúp an toàn cho làng đã ra đi thầm lặng", phrase2: "", phrase3: ""},
+    {die: true, number: 3, phrase1: "Sẽ là một đêm tàn khóc và đầy đau thương khi không còn ai trấn giữ ngôi làng", phrase2: "", phrase3: ""}
+]
+
+//câu chuyện của người thợ săn 
+//sau phrase1 là tên người giữ thẻ bài thợ săn
+//sau phrase2 là người bị bắn
+//có 3 phrase
+var storyHunter = [
+    {number: 1, phrase1: "Trong làng có tồn tại một người có quyền năng kéo một người sẽ chết theo hắn đó là Thợ Săn(", phrase2: ") khi hay tin làng bị sói giả dạng thì hắn đã nghỉ đến", phrase3: ", người Thợ Săn đã nguyền rủa vào mũi tên của hắn và đã bắn kia tình nghi kia"},
+    {number: 2, phrase1: "Từ khi hay tin làng có bọn sói giả dạng nên người Thợ Săn(", phrase2: ") đã nguyền rủa vào tên và bắn vào", phrase3: "là kẻ làm người săn bắn cảm thấy bất an nhất"},
+    {number: 3, phrase1: "Khi làng có thôn báo về việc trong làng có bọn sói giả dạng dân, thì người Thợ Săn(",  phrase2: ") cảm thấy", phrase3: "là một người đáng là nghi ngờ thì hắn ta vừa chuyển đến làng và ngay lập tức người Thợ Săn dùng mũi tên có lời nguyền \"Khi Thợ Săn chết thì người bị dính mũi tên cũng sẽ chết theo\" bắn vào người đó"}
+]
+
+//câu chuyện của người ban tình yêu
+//có 3 phrase
+//sau phrase1 là tên người giữ thẻ bài Cupid
+//sau phrase2 là 2 người được ban tình yêu 
+var storyCupid = [
+    {number: 1, phrase1: "Với quyền năng và trách nhiệm của người ban tình yêu cho ngôi làng thì thần Cupid(", phrase2: ") đã cảm thấy tình yêu mãnh liệt giữa", phrase3: ", nên thần đã quyết định trao sự gắn kết vĩnh cửu cho họ"},
+    {number: 2, phrase1: "Với tinh thần và trách nhiệm ban tình yêu đến lứa đối thì thần Cupid(", phrase2: ") đã trao 1 tình yêu vĩnh cửu cho", phrase3: ", thì tình yêu này sẽ giúp họ cùng sống cùng chết để bên nhau"},
+    {number: 3, phrase1: "Thần Cupid(", phrase2: ") có một thiên chức rằng hãy mang đến nhân gian với 1 tình yêu đẹp thì thần đã cảm thấy", phrase3: "đáng có tình yêu vĩnh hằng, thì thần đã quyết định ban tặng cho họ với phúc hậu này"}
+]
+
+//câu chuyện của người thổi sáo
+//die thể hiện người giữ bài còn sống hay chết => false: sống || true: chết
+//có 3 phrase
+//sau phrase1 là tên người giữ thẻ bài thổi sáo
+//sau phrase2 là tên những người bị thôi niêm
+var storyFlute = [
+    {die: false, number: 1, phrase1: "Là một người thích thổi sáo(", phrase2: ") mà bị dính 1 lời nguyền mỗi đêm sẽ đi thôi niêm người khác, tuy người này đã biết nhưng cũng bắt lực trước lời nguyện thì bỗng dưng có", phrase3: "đi ngang nơi thổi sáo nên đã vô tình bị thôi niêm"},
+    {die: false, number: 2, phrase1: "Đêm lại xuống thì", phrase2: "lại bắt đầu đi thôi niêm người khác,", phrase3: "hình như mất ngủ nên đi dạo ngang nơi ấy và thế đã vô tình bị thôi niêm"},
+    {die: true, number: 1, phrase1: "Với sự ra đi mãi mãi của", phrase2: "thì đêm nay làng không còn phải nhận thêm 1 tình trạng bị thôi niêm nào nữa", phrase3: ""},
+    {die: true, number: 2, phrase1: "Cái sự từ giả làng của", phrase2: "đã giúp làng không còn phải khốn khổ về việc cứ chơi đêm là bị thôi niêm", phrase3: ""}
+]
+
+//câu chuyên về người có khả năng tiên đoán
+//die thể hiện người giữ lá bài tiên tri còn sống hay chết => false: sống || true: chết
+//có 3 phrase
+//sau phrase1 là người giữ lá bài tiên tri
+//sau phrase2 là người bị soi
+var storyProphesy = [
+    {die: false, number: 1, phrase1: "Cùng lúc đó người tiên tri bí ẩn của làng(", phrase2: ") đã dùng khả năng tiên đoán của bản thân xem", phrase3: "có phải là sói không"},
+    {die: false, number: 2, phrase1: "Đồng thời lúc đó bà tiên tri(", phrase2: ") cũng đã dùng khả năng tiên tri để soi", phrase3: ""},
+    {die: false, number: 3, phrase1: "Bầy sói hung tợn thật xảo nguyệt đã giả dạng dân làng, nên", phrase2: "dùng khả khả dùng thấu nội tâm và đã soi", phrase3: "có phải là một con sói hung tợn không"},
+    {die: false, number: 4, phrase1: "Với khả năng bẩm sinh có thể nhìn thấu nội tâm nên", phrase2: "đã dùng khả năng này để soi", phrase3: "có là một 1 chú sói giả dạng dân làng không"},
+    {die: true, number: 1, phrase1: "Do người tiên tri(", phrase2: ") đã ra đi nên không còn ai có thể soi được bầy sói là ai nữa", phrase3: ""},
+    {die: true, number: 2, phrase1: "Sự ra đi của", phrase2: "làm cho làng không một ai nhận thấy đâu là sói nữa, làng thì lại không ai biết người có khả năng nhìn thấu đã không còn", phrase3: ""},
+    {die: true, number: 3, phrase1: "Kể từ đêm nay có lẻ bọn sói không sợ một ai nhìn thấy thân phận của chúng vì,", phrase2: "là người duy nhất có khả năng nhìn thấy lòng người, có lẻ ngay cả người dân và bọn sói không một ai biết điều này", phrase3: ""}
+]
+
+//câu chuyện về kết quả sói của người giữ lá bài tiên tri
+//userWoft là kiểm tra người mà tiên tri soi có phải là sói không => false: không phải sói || true: là sói
+var storyProphesyResult = [
+    {userWoft: false, number: 1, phrase1: ", nhưng", phrase2: "không phải là sói và điều đó đã giúp", phrase3: "tin tưởng hơn vào"},
+    {userWoft: true, number: 1, phrase1: "thì thật bất ngờ", phrase2: "là sói và người tiên tri đã quyết định mai sẽ thông báo cho làng biết tin."}
+]
+//used là để bình cứ đã dùng chưa
+var storyWitchHelp = [
+    {used: false, number: 1, phrase1: "Bậc thầy phù thủy(", phrase2: ") dùng khả năng cảm nhận cảm thấy đêm nay không có người chết nên ông ta không dùng bình thuốc"}
+]
+//used là để biết bình giết đã còn hay không
+var storyWitchDie = [
+    {used: true, number: 1, phrase1: "nhưng người phù thủy vĩ đại lại nghi ngờ", phrase2: "là sói nên ông đã cho 1 bình thuốc độc vào người ấy."}
+]
+//storyMorning là lúc bắt đầu trời vừa sáng
+//die là xem tối qua có người chết hay không
+var storyMorning = [
+    {die: true, number: 1, phrase1: "Mọi người đã nghe 1 tin dữ đó là cái chết của"},
+    {die: true, number: 2, phrase1: "Mọi người trong làng lại nghe đc 1 hung tin đó là", phrase2: "đã từ giả khỏi cuộc đời"},
+    {die: false, number: 1, phrase1: "Mọi người hôm nay thật vui vẻ vì đêm qua không một ai chết cả, nhưng mọi người hầu như chỉ vui vẻ bên ngoài còn bên trong ai ai cũng lo lắng liệu bọn sói đêm qua chỉ là ngủ quên."}
+]
+//storyVote là lúc mọi người đã nghi ngờ xong
+//userVote là kiểm tra xem mọi người có ai bị nghi ngờ không
+var storyVote = [
+    {userVote: false, number: 1, phrase1: "Với tin hung như vậy mọi người bắt đầu bàn tán với nhau hăng say đến đêm."},
+    {userVote: true, number: 1, phrase1: "Mọi người bắt đầu lo sợ và mỗi người có một suy nghĩ độc đoán và họ đã bàn tán đến cuối cùng đã đưa"},
+    {userVote: true, number: 2, phrase1: "Vì thế mọi người lại bàn tán và đưa ra quyết định đưa", phrase2: "lên sàn."}
+]
+//storyAdvocate là lúc mọi người bầu quyết nên giết hay tha
+//die thể hiện việc tha hay không
+var storyAdvocate = [
+    {die: true, number: 1, phrase1: "Mọi người đã cho", phrase2: "biện hộ nhưng anh ta không thuyết phục được ai nên đã ra đi"},
+    {die: true, number: 2, phrase1: "Sau một hồi biện hộ thì người đó cũng không thể thoát khỏi cái chết."}
+]
+//storyAdvocateLove là người đang sống có tình yêu vs người đã chết
+var storyAdvocateLove = [
+    {number: 1, phrase1: "và với tình yêu mãnh liệt thì", phrase2: "đã gieo mình xuống vược sâu để được theo", phrase3: "để lại mọi sự thắc mắc với lí do gì mà", phrase4: "lại tự vẫn nhưng", phrase5: "là người đã hiểu rõ lí do tại sao lại xảy ra chuyện như vậy"}
+]
 
 //config socket.io
 require('dotenv').config()
@@ -215,10 +340,33 @@ io.sockets.on("connection", (socket) => {
     socket.on("createRoom", (data) => {
         var info = JSON.parse(data)
 
-        //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
-        roomPlayer.push({
-            user: info.user, ready: true, func: "", roomId: info.roomId, patriarch: false, hypnosis: false, love: false, shot: false, protected: false, die: false, bitten: 0 , beBitten: false, potionHelp: false, potionDie: false, beVote: 0, isVote: false, agreeAdvocate: 0
-        })
+        //kiểm tra tài khoản đã trong mảng roomPlayer
+        var user = roomPlayer.find((e) => e.user == info.user)
+        if(user == null){
+            //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
+            roomPlayer.push({
+                user: info.user, ready: true, func: "", roomId: info.roomId, patriarch: false, hypnosis: false, love: false, 
+                shot: false, protected: false, die: false, bitten: 0 , beBitten: false, potionHelp: false, potionDie: false, 
+                beVote: 0, isVote: false, agreeAdvocate: 0
+            })
+        }else{
+            var index = roomPlayer.indexOf(user)
+            roomPlayer[index].ready = true
+            roomPlayer[index].func = ""
+            roomPlayer[index].patriarch = false
+            roomPlayer[index].hypnosis = false
+            roomPlayer[index].love = false
+            roomPlayer[index].shot = false
+            roomPlayer[index].protected = false
+            roomPlayer[index].die = false
+            roomPlayer[index].bitten = 0
+            roomPlayer[index].beBitten = false
+            roomPlayer[index].positionHelp = false
+            roomPlayer[index].potionDie = false
+            roomPlayer[index].beVote = 0
+            roomPlayer[index].isVote = false
+            roomPlayer[index].agreeAdvocate = 0
+        }
 
         check1("mảng người chơi trong đã vào phòng", roomPlayer)
 
@@ -326,7 +474,7 @@ io.sockets.on("connection", (socket) => {
         }
     })
 
-    //data: roomId || voteTime || advocateTime
+    //data: roomId || voteTime || advocateTime || historyId
     socket.on("start", (data) => {
         var info = JSON.parse(data)
 
@@ -340,12 +488,11 @@ io.sockets.on("connection", (socket) => {
                 for(var i = 0; i < 3; i++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
                     if(i == 0){
-                        randomBai(random, playerOfRoom, 1)
+                        randomBai(random, playerOfRoom, 1, info.historyId)
                     }else if(i == 1){
-                        //kiểm tra tình yêu
-                        randomBai(random, playerOfRoom, 8)
+                        randomBai(random, playerOfRoom, 2, info.historyId)
                     }else if(i == 2){
-                        randomBai(random, playerOfRoom, 3)
+                        randomBai(random, playerOfRoom, 3, info.historyId)
                     }
                     playerOfRoom.splice(random, 1)
                 }
@@ -353,13 +500,13 @@ io.sockets.on("connection", (socket) => {
                 for(var i = 0 ; i < 5; i ++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
                     if(i < 2){
-                        randomBai(random, playerOfRoom, 1)
+                        randomBai(random, playerOfRoom, 1, info.historyId)
                     }else if(i == 2){
-                        randomBai(random, playerOfRoom, 2)
+                        randomBai(random, playerOfRoom, 2, info.historyId)
                     }else if(i == 3){
-                        randomBai(random, playerOfRoom,3)
+                        randomBai(random, playerOfRoom,3, info.historyId)
                     }else if(i == 4){
-                        randomBai(random, playerOfRoom, 4)
+                        randomBai(random, playerOfRoom, 4, info.historyId)
                     }
                     playerOfRoom.splice(random, 1)
                 }
@@ -367,17 +514,17 @@ io.sockets.on("connection", (socket) => {
                 for(var i = 0 ; i < 8; i ++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
                     if(i < 3){
-                        randomBai(random, playerOfRoom, 1)
+                        randomBai(random, playerOfRoom, 1, info.historyId)
                     }else if(i == 3){
-                        randomBai(random, playerOfRoom, 2)
+                        randomBai(random, playerOfRoom, 2, info.historyId)
                     }else if(i == 4){
-                        randomBai(random, playerOfRoom, 3)
+                        randomBai(random, playerOfRoom, 3, info.historyId)
                     }else if(i == 5){
-                        randomBai(random, playerOfRoom, 4)
+                        randomBai(random, playerOfRoom, 4, info.historyId)
                     }else if(i == 6){
-                        randomBai(random, playerOfRoom, 5)
+                        randomBai(random, playerOfRoom, 5, info.historyId)
                     }else if(i == 7){
-                        randomBai(random, playerOfRoom, 6)
+                        randomBai(random, playerOfRoom, 6, info.historyId)
                     }
                     playerOfRoom.splice(random, 1)
                 }
@@ -385,19 +532,19 @@ io.sockets.on("connection", (socket) => {
                 for(var i = 0 ; i < 9; i ++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
                     if(i < 3){
-                        randomBai(random, playerOfRoom, 1)
+                        randomBai(random, playerOfRoom, 1, info.historyId)
                     }else if(i == 3){
-                        randomBai(random, playerOfRoom, 2)
+                        randomBai(random, playerOfRoom, 2, info.historyId)
                     }else if(i == 4){
-                        randomBai(random, playerOfRoom, 3)
+                        randomBai(random, playerOfRoom, 3, info.historyId)
                     }else if(i == 5){
-                        randomBai(random, playerOfRoom, 4)
+                        randomBai(random, playerOfRoom, 4, info.historyId)
                     }else if(i == 6){
-                        randomBai(random, playerOfRoom, 5)
+                        randomBai(random, playerOfRoom, 5, info.historyId)
                     }else if(i == 7){
-                        randomBai(random, playerOfRoom, 6)
+                        randomBai(random, playerOfRoom, 6, info.historyId)
                     }else if(i == 8){
-                        randomBai(random, playerOfRoom, 7)
+                        randomBai(random, playerOfRoom, 7, info.historyId)
                     }
                     playerOfRoom.splice(random, 1)
                 }
@@ -405,21 +552,21 @@ io.sockets.on("connection", (socket) => {
                 for(var i = 0 ; i < 11; i ++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
                     if(i < 4){
-                        randomBai(random, playerOfRoom, 1)
+                        randomBai(random, playerOfRoom, 1, info.historyId)
                     }else if(i == 4){
-                        randomBai(random, playerOfRoom, 2)
+                        randomBai(random, playerOfRoom, 2, info.historyId)
                     }else if(i == 5){
-                        randomBai(random, playerOfRoom, 3)
+                        randomBai(random, playerOfRoom, 3, info.historyId)
                     }else if(i == 6){
-                        randomBai(random, playerOfRoom, 4)
+                        randomBai(random, playerOfRoom, 4, info.historyId)
                     }else if(i == 7){
-                        randomBai(random, playerOfRoom, 5)
+                        randomBai(random, playerOfRoom, 5, info.historyId)
                     }else if(i == 8){
-                        randomBai(random, playerOfRoom, 6)
+                        randomBai(random, playerOfRoom, 6, info.historyId)
                     }else if(i == 9){
-                        randomBai(random, playerOfRoom, 7)
+                        randomBai(random, playerOfRoom, 7, info.historyId)
                     }else if(i == 10){
-                        randomBai(random, playerOfRoom, 8)
+                        randomBai(random, playerOfRoom, 8, info.historyId)
                     }
                     playerOfRoom.splice(random, 1)
                 }
@@ -427,23 +574,23 @@ io.sockets.on("connection", (socket) => {
                 for(var i = 0 ; i < 12; i ++){
                     var random = Math.floor(Math.random() * playerOfRoom.length);
                     if(i < 4){
-                        randomBai(random, playerOfRoom, 1)
+                        randomBai(random, playerOfRoom, 1, info.historyId)
                     }else if(i == 4){
-                        randomBai(random, playerOfRoom, 2)
+                        randomBai(random, playerOfRoom, 2, info.historyId)
                     }else if(i == 5){
-                        randomBai(random, playerOfRoom, 3)
+                        randomBai(random, playerOfRoom, 3, info.historyId)
                     }else if(i == 6){
-                        randomBai(random, playerOfRoom, 4)
+                        randomBai(random, playerOfRoom, 4, info.historyId)
                     }else if(i == 7){
-                        randomBai(random, playerOfRoom, 5)
+                        randomBai(random, playerOfRoom, 5, info.historyId)
                     }else if(i == 8){
-                        randomBai(random, playerOfRoom, 6)
+                        randomBai(random, playerOfRoom, 6, info.historyId)
                     }else if(i == 9){
-                        randomBai(random, playerOfRoom, 7)
+                        randomBai(random, playerOfRoom, 7, info.historyId)
                     }else if(i == 10){
-                        randomBai(random, playerOfRoom, 8)
+                        randomBai(random, playerOfRoom, 8, info.historyId)
                     }else if(i == 11){
-                        randomBai(random, playerOfRoom, 9)
+                        randomBai(random, playerOfRoom, 9, info.historyId)
                     }
                     playerOfRoom.splice(random, 1)
                 }
@@ -464,6 +611,7 @@ io.sockets.on("connection", (socket) => {
             timeList[index].voteTime = info.voteTime
             timeList[index].advocateTime = info.advocateTime
             timeList[index].quantity = players.length
+            timeList[index].historyId = info.historyId
         }else{
             timeList.push(
                 {
@@ -472,7 +620,8 @@ io.sockets.on("connection", (socket) => {
                     voteTime: info.voteTime,
                     advocateTime: info.advocateTime,
                     code: 0,
-                    quantity: players.length
+                    quantity: players.length,
+                    historyId: info.historyId
                 })
         }
         check1("Start_Time", timeList);
@@ -493,10 +642,33 @@ io.sockets.on("connection", (socket) => {
             }
         }
 
-        //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
-        roomPlayer.push({
-            user: info.user, ready: false, func: "", roomId: info.roomId, patriarch: false, hypnosis: false, love: false, shot: false, protected: false, die: false, bitten: 0 , beBitten: false, potionHelp: false, potionDie: false, beVote: 0, isVote: false, agreeAdvocate: 0
-        })
+        //kiểm tra tài khoản đã trong mảng roomPlayer
+        var user = roomPlayer.find((e) => e.user == info.user)
+        if(user == null){
+            //user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten  || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
+            roomPlayer.push({
+                user: info.user, ready: false, func: "", roomId: info.roomId, patriarch: false, hypnosis: false, love: false, 
+                shot: false, protected: false, die: false, bitten: 0 , beBitten: false, potionHelp: false, potionDie: false, 
+                beVote: 0, isVote: false, agreeAdvocate: 0
+            })
+        }else{
+            var index = roomPlayer.indexOf(user)
+            roomPlayer[index].ready = false
+            roomPlayer[index].func = ""
+            roomPlayer[index].patriarch = false
+            roomPlayer[index].hypnosis = false
+            roomPlayer[index].love = false
+            roomPlayer[index].shot = false
+            roomPlayer[index].protected = false
+            roomPlayer[index].die = false
+            roomPlayer[index].bitten = 0
+            roomPlayer[index].beBitten = false
+            roomPlayer[index].positionHelp = false
+            roomPlayer[index].potionDie = false
+            roomPlayer[index].beVote = 0
+            roomPlayer[index].isVote = false
+            roomPlayer[index].agreeAdvocate = 0
+        }
 
         check2("joinroom")
 
@@ -588,9 +760,8 @@ io.sockets.on("connection", (socket) => {
                 }
             }
             //kiểm tra tình yêu
-            callNext(info.roomId, 8, rangeTime, 4)
-            //kiểm tra tiên tri
-            //callNext(info.roomId, 2, rangeTime, 4)
+            //callNext(info.roomId, 8, rangeTime, 4)
+            callNext(info.roomId, 2, rangeTime, 4)
         }else if(infoRoom.quantity < 10){
             if(players.length == 2){
                 if(playerBittens.length == 1){
@@ -1030,7 +1201,7 @@ io.sockets.on("connection", (socket) => {
     })
 
     //ramdom là vị trí thứ trự trong phòng
-    function randomBai(random, playerOfRoom, func){
+    function randomBai(random, playerOfRoom, func, historyId){
         var bai = funcList.find((e) => e.number == func)
 
         var player = playerOfRoom[random]
@@ -1042,9 +1213,9 @@ io.sockets.on("connection", (socket) => {
         check1("user receiver", user)
         if(user != null){
             if(user.id === socket.id)
-                socket.emit("S_startRoom", {bai: bai.id})
+                socket.emit("S_startRoom", {bai: bai.id, historyId: historyId})
             else
-                socket.to(user.id).emit("S_startRoom", {bai: bai.id})
+                socket.to(user.id).emit("S_startRoom", {bai: bai.id, historyId: historyId})
         }
     }
 
@@ -1061,12 +1232,11 @@ io.sockets.on("connection", (socket) => {
                         callNext(item.roomId, 1, rangeTime, 1)
                     }
                     break
-                    //kiểm tra tình yêu
                     case 2:{
                         if(item.quantity < 7)
-                            callNext(item.roomId, 8, rangeTime, 4)
+                            callNext(item.roomId, 2, rangeTime, 4)
                         else
-                            callNext(item.roomId, 8, rangeTime, 1)
+                            callNext(item.roomId, 2, rangeTime, 1)
                     }
                     break
                     case 3:{
