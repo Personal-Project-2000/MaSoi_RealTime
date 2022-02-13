@@ -45,36 +45,36 @@ var playerDieNew = []
 
 //beBitten có giết người hay không => true là có || false là không
 //sau phrase1 là những người có thẻ bài sói
-//sau phrase2 là nạn nhận sói giết
+//sau phrase2 là nạn nhận sói giết khi beBitten == true
 //có 3 phrase
 var storyWoft = [
-    {beBitten: true, number: 1, phrase1: "Khi màn đêm vừa buôn xuống bầy sói(", phrase2: ") cảm thấy", phrase3: "khó ưa quá vì thế đêm nay chúng đã quyết xơi"},
-    {beBitten: true, number: 2, phrase1: "Bọn sói(", phrase2: ") thật xảo nguyệt cảm thấy", phrase3: "quá là chước mắt với khả năng nói nhiều của hắn nên bọn sói đã quyết định xơi"},
-    {beBitten: true, number: 3, phrase1: "Bọn sói(", phrase2: ") đã biết như vậy nên hôm qua sói đã không đưa ra quyết định nhanh chóng mà lượn lờ từng người xem ai thú vị, sau một lúc lượn lờ thì bọn chúng đã chọn", phrase3: "lên thớt, với sự bất phản kháng thì người ấy đã đi xa"},
+    {beBitten: true, number: 1, phrase1: "Khi màn đêm vừa buôn xuống bầy sói (", phrase2: ") cảm thấy", phrase3: "khó ưa quá vì thế đêm nay chúng đã quyết xơi"},
+    {beBitten: true, number: 2, phrase1: "Bọn sói (", phrase2: ") thật xảo nguyệt cảm thấy", phrase3: "quá là chước mắt với khả năng nói nhiều của hắn nên bọn sói đã quyết định xơi"},
+    {beBitten: true, number: 3, phrase1: "Bọn sói (", phrase2: ") đã biết như vậy nên hôm qua sói đã không đưa ra quyết định nhanh chóng mà lượn lờ từng người xem ai thú vị, sau một lúc lượn lờ thì bọn chúng đã chọn", phrase3: "lên thớt, với sự bất phản kháng thì người ấy đã đi xa"},
     {beBitten: true, number: 4, phrase1: "Mặt trời vừa xuống núi bầy sói trong làng đã hiện nguyên hình(", phrase2: ") lúc sáng bọn chúng đã xác định mục tiêu là", phrase3: "nên mặt trời vừa biến mất bọn chúng đã tấn công"},
-    {beBitten: true, number: 5, phrase1: "Hoàng hồn vừa bắt đầu bầy sói(", phrase2: ") đã tập hợp lại để rình mò xem đêm nay ai sẽ là mục tiêu thì đúng lúc đó", phrase3: "đi ngang nên bầy sói đã xơi người xấu số này"},
-    {beBitten: false, number: 1, phrase1: "Buổi sáng bọn sói(", phrase2: ") đã cùng mọi người trong làng làm việc rã người nên đêm nay bọn chúng quyết nghỉ ngơi mà không tấn công ai.", phrase3: ""},
-    {beBitten: false, number: 2, phrase2: "Bầy(", phrase2: ") sói hôm nay nghe một câu chuyện bi thương và bọn chúng đã có một lòng thương cảm nên đêm nay bọn chúng quyết định không tấn công", phrase3: ""}
+    {beBitten: true, number: 5, phrase1: "Hoàng hồn vừa bắt đầu bầy sói (", phrase2: ") đã tập hợp lại để rình mò xem đêm nay ai sẽ là mục tiêu thì đúng lúc đó", phrase3: "đi ngang nên bầy sói đã xơi người xấu số này"},
+    {beBitten: false, number: 1, phrase1: "Buổi sáng bọn sói (", phrase2: ") đã cùng mọi người trong làng làm việc rã người nên đêm nay bọn chúng quyết nghỉ ngơi mà không tấn công ai.", phrase3: ""},
+    {beBitten: false, number: 2, phrase2: "Bầy (", phrase2: ") sói hôm nay nghe một câu chuyện bi thương và bọn chúng đã có một lòng thương cảm nên đêm nay bọn chúng quyết định không tấn công.", phrase3: ""}
 ]
 
 //người bị tấn công sẽ được bảo vệ 
 //có 1 phrase
 var storyWoftProtected = [
-    {number: 1, phrase1: "nhưng xui sao bọn sói lại không biết người Bảo Vệ làng hôm nay chọn nơi này nên lũ sói đã bị anh Bảo Vệ làm cho một trận nên thân."},
-    {number: 2, phrase1: "bọn sói đã không biết cái quyết định của người Bảo vệ đêm nay lại là người bọn chúng muốn tấn công và thế là bọn chúng đã không toàn mạng trở về"}
+    {number: 1, phrase1: ", nhưng xui sao bọn sói lại không biết người Bảo Vệ làng hôm nay chọn nơi này nên lũ sói đã bị anh Bảo Vệ làm cho một trận nên thân."},
+    {number: 2, phrase1: ", bọn sói đã không biết cái quyết định của người Bảo vệ đêm nay lại là người bọn chúng muốn tấn công và thế là bọn chúng đã không toàn mạng trở về"}
 ]
 
 //die thể hiện người giữ lá bài bảo vệ còn sống hay chết => false: sống || true: chết
-//sau phrase1 là tên người giữ thẻ bài bảo vệ
-//sau phrase2 là người đc bảo vệ
+//sau phrase1 là tên người giữ thẻ bài bảo vệ khi die == false
+//sau phrase2 là người đc bảo vệ khi die == false
 //có 3 phrase
 var storyGuard = [
-    {die: false, number: 1, phrase1: "Đêm nay người Bảo Vệ(", phrase2: ") của làng cảm thấy khá là bất bình nên đã bảo vệ", phrase3: ""},
-    {die: false, number: 2, phrase1: "Quá là hoang mang nên người Bảo Vệ(", phrase2: ") của làng cảm thấy khá là bất bình nên đã bảo vệ", phrase3: ""},
-    {die: false, number: 3, phrase1: "Bắt đầu hoàng hôn buôn xuống người Bảo Vệ(", phrase2: ") hôm nay bỗng dưng cảm thấy 1 điều bất an nên đã sang nhà", phrase3: "để bảo vệ"},
-    {die: true, number: 1, phrase1: "Sự ra đi thầm lặng của người Bảo Vệ sẽ khiến đêm nay làng có một kết cục bi thảm", phrase2: "", phrase3: ""},
-    {die: true, number: 2, phrase1: "Đêm nay làng sẽ có một án thảm khóc bởi vì người giúp an toàn cho làng đã ra đi thầm lặng", phrase2: "", phrase3: ""},
-    {die: true, number: 3, phrase1: "Sẽ là một đêm tàn khóc và đầy đau thương khi không còn ai trấn giữ ngôi làng", phrase2: "", phrase3: ""}
+    {die: false, number: 1, phrase1: ". Đêm nay người Bảo Vệ(", phrase2: ") của làng cảm thấy khá là bất bình nên đã bảo vệ", phrase3: ""},
+    {die: false, number: 2, phrase1: ". Quá là hoang mang nên người Bảo Vệ(", phrase2: ") của làng cảm thấy khá là bất bình nên đã bảo vệ", phrase3: ""},
+    {die: false, number: 3, phrase1: ". Bắt đầu hoàng hôn buôn xuống người Bảo Vệ(", phrase2: ") hôm nay bỗng dưng cảm thấy 1 điều bất an nên đã sang nhà", phrase3: "để bảo vệ"},
+    {die: true, number: 1, phrase1: ". Sự ra đi thầm lặng của người Bảo Vệ sẽ khiến đêm nay làng có một kết cục bi thảm", phrase2: "", phrase3: ""},
+    {die: true, number: 2, phrase1: ". Đêm nay làng sẽ có một án thảm khóc bởi vì người giúp an toàn cho làng đã ra đi thầm lặng", phrase2: "", phrase3: ""},
+    {die: true, number: 3, phrase1: ". Sẽ là một đêm tàn khóc và đầy đau thương khi không còn ai trấn giữ ngôi làng", phrase2: "", phrase3: ""}
 ]
 
 //câu chuyện của người thợ săn 
@@ -82,9 +82,9 @@ var storyGuard = [
 //sau phrase2 là người bị bắn
 //có 3 phrase
 var storyHunter = [
-    {number: 1, phrase1: "Trong làng có tồn tại một người có quyền năng kéo một người sẽ chết theo hắn đó là Thợ Săn(", phrase2: ") khi hay tin làng bị sói giả dạng thì hắn đã nghỉ đến", phrase3: ", người Thợ Săn đã nguyền rủa vào mũi tên của hắn và đã bắn kia tình nghi kia"},
-    {number: 2, phrase1: "Từ khi hay tin làng có bọn sói giả dạng nên người Thợ Săn(", phrase2: ") đã nguyền rủa vào tên và bắn vào", phrase3: "là kẻ làm người săn bắn cảm thấy bất an nhất"},
-    {number: 3, phrase1: "Khi làng có thôn báo về việc trong làng có bọn sói giả dạng dân, thì người Thợ Săn(",  phrase2: ") cảm thấy", phrase3: "là một người đáng là nghi ngờ thì hắn ta vừa chuyển đến làng và ngay lập tức người Thợ Săn dùng mũi tên có lời nguyền \"Khi Thợ Săn chết thì người bị dính mũi tên cũng sẽ chết theo\" bắn vào người đó"}
+    {number: 1, phrase1: ". Trong làng có tồn tại một người có quyền năng kéo một người sẽ chết theo hắn đó là Thợ Săn(", phrase2: ") khi hay tin làng bị sói giả dạng thì hắn đã nghỉ đến", phrase3: ", người Thợ Săn đã nguyền rủa vào mũi tên của hắn và đã bắn kia tình nghi kia"},
+    {number: 2, phrase1: ". Từ khi hay tin làng có bọn sói giả dạng nên người Thợ Săn(", phrase2: ") đã nguyền rủa vào tên và bắn vào", phrase3: "là kẻ làm người săn bắn cảm thấy bất an nhất"},
+    {number: 3, phrase1: ". Khi làng có thôn báo về việc trong làng có bọn sói giả dạng dân, thì người Thợ Săn(",  phrase2: ") cảm thấy", phrase3: "là một người đáng là nghi ngờ thì hắn ta vừa chuyển đến làng và ngay lập tức người Thợ Săn dùng mũi tên có lời nguyền \"Khi Thợ Săn chết thì người bị dính mũi tên cũng sẽ chết theo\" bắn vào người đó"}
 ]
 
 //câu chuyện của người ban tình yêu
@@ -101,10 +101,10 @@ var storyCupid = [
 //die thể hiện người giữ bài còn sống hay chết => false: sống || true: chết
 //có 3 phrase
 //sau phrase1 là tên người giữ thẻ bài thổi sáo
-//sau phrase2 là tên những người bị thôi niêm
+//sau phrase2 là tên những người bị thôi niêm khi die == false
 var storyFlute = [
     {die: false, number: 1, phrase1: "Là một người thích thổi sáo(", phrase2: ") mà bị dính 1 lời nguyền mỗi đêm sẽ đi thôi niêm người khác, tuy người này đã biết nhưng cũng bắt lực trước lời nguyện thì bỗng dưng có", phrase3: "đi ngang nơi thổi sáo nên đã vô tình bị thôi niêm"},
-    {die: false, number: 2, phrase1: "Đêm lại xuống thì", phrase2: "lại bắt đầu đi thôi niêm người khác,", phrase3: "hình như mất ngủ nên đi dạo ngang nơi ấy và thế đã vô tình bị thôi niêm"},
+    {die: false, number: 2, phrase1: "Đêm lại xuống thì ", phrase2: " lại bắt đầu đi thôi niêm người khác,", phrase3: "hình như mất ngủ nên đi dạo ngang nơi ấy và thế đã vô tình bị thôi niêm"},
     {die: true, number: 1, phrase1: "Với sự ra đi mãi mãi của", phrase2: "thì đêm nay làng không còn phải nhận thêm 1 tình trạng bị thôi niêm nào nữa", phrase3: ""},
     {die: true, number: 2, phrase1: "Cái sự từ giả làng của", phrase2: "đã giúp làng không còn phải khốn khổ về việc cứ chơi đêm là bị thôi niêm", phrase3: ""}
 ]
@@ -113,7 +113,7 @@ var storyFlute = [
 //die thể hiện người giữ lá bài tiên tri còn sống hay chết => false: sống || true: chết
 //có 3 phrase
 //sau phrase1 là người giữ lá bài tiên tri
-//sau phrase2 là người bị soi
+//sau phrase2 là người bị soi khi die == false
 var storyProphesy = [
     {die: false, number: 1, phrase1: "Cùng lúc đó người tiên tri bí ẩn của làng(", phrase2: ") đã dùng khả năng tiên đoán của bản thân xem", phrase3: "có phải là sói không"},
     {die: false, number: 2, phrase1: "Đồng thời lúc đó bà tiên tri(", phrase2: ") cũng đã dùng khả năng tiên tri để soi", phrase3: ""},
@@ -126,41 +126,84 @@ var storyProphesy = [
 
 //câu chuyện về kết quả sói của người giữ lá bài tiên tri
 //userWoft là kiểm tra người mà tiên tri soi có phải là sói không => false: không phải sói || true: là sói
+//có 2 phrase
+//sau phrase1 là người bị soi
 var storyProphesyResult = [
     {userWoft: false, number: 1, phrase1: ", nhưng", phrase2: "không phải là sói và điều đó đã giúp", phrase3: "tin tưởng hơn vào"},
-    {userWoft: true, number: 1, phrase1: "thì thật bất ngờ", phrase2: "là sói và người tiên tri đã quyết định mai sẽ thông báo cho làng biết tin."}
+    {userWoft: true, number: 1, phrase1: "thì thật bất ngờ", phrase2: "là sói và người tiên tri đã quyết định mai sẽ thông báo cho làng biết tin."},
+    {userWoft: false, number: 2, phrase1: ", khi biết kết quả làm cho tiên tri vừa vui cũng như vừa không vui, vì", phrase2: "không phải là sói nên vui là đã tìm được người đáng tin cậy, không vui là đã mất đi 1 lần truy tìm sói."},
+    {userWoft: false, number: 3, phrase1: "kết quả của lần soi này làm cho nhà tiên tri cảm thấy thất vọng, vì", phrase2: "không phải là sói nên đã làm 1 cơ hội tìm ra con thú hoang ác độc ấy"},
+    {userWoft: true, number: 2, phrase1: "kết quả làm cho nhà tiên tri phải hết hồn vì", phrase2: "là một người thường xuyên giúp đỡ mọi người và cũng là người thân nhất với tiên tri, nhưng không ngờ đó là một con sói"},
+    {userWoft: true, number: 3, phrase1: "với kết quả này thì làm cho tiên tri không có gì là cảm thấy là bất ngờ, vì tiên tri đã cảm thấy những hành vi của", phrase2: "chả khác gì một con thú hoang giả khao khát máu"}
 ]
-//used là để bình cứ đã dùng chưa
+
+//câu chuyện về người phù thủy đã chết
+//có 2 phrase
+//sau phrase1 là tên người giữ bài phù thủy
+var storyWitchIsDie = [
+    {number: 1, phrase1: "Với sự ra đi của", phrase2: "nên làng đã mất đi người đều chế ra những lọ thuốc"},
+    {number: 2, phrase1: "Từ đêm nay trở đi dù có người chết thì cũng không còn ai có thể cứu được nữa, vì", phrase2: "đã ra đi mãi mãi"},
+]
+
+//used là để bình cứ đã dùng chưa => false: chưa dùng || true: đã dùng
+//userDie
 var storyWitchHelp = [
-    {used: false, number: 1, phrase1: "Bậc thầy phù thủy(", phrase2: ") dùng khả năng cảm nhận cảm thấy đêm nay không có người chết nên ông ta không dùng bình thuốc"}
+    {used: false, number: 1, phrase1: "đang ngủ ngon thì", phrase2: "bừng tỉnh dậy do cảm nhận được 1 người trong làng bị chết, và sau một hồi đấng đo thì "},
+    {use}
 ]
+
 //used là để biết bình giết đã còn hay không
 var storyWitchDie = [
     {used: true, number: 1, phrase1: "nhưng người phù thủy vĩ đại lại nghi ngờ", phrase2: "là sói nên ông đã cho 1 bình thuốc độc vào người ấy."}
 ]
+
 //storyMorning là lúc bắt đầu trời vừa sáng
-//die là xem tối qua có người chết hay không
+//die là xem tối qua có người chết hay không => true: có người chết || false: không có người chết
+//có 2 phrase
+//sau phrase1 là tên những người đêm vừa qua đã chết khi die == true
 var storyMorning = [
-    {die: true, number: 1, phrase1: "Mọi người đã nghe 1 tin dữ đó là cái chết của"},
+    {die: true, number: 1, phrase1: "Mọi người đã nghe 1 tin dữ đó là cái chết của", phrase2: ""},
     {die: true, number: 2, phrase1: "Mọi người trong làng lại nghe đc 1 hung tin đó là", phrase2: "đã từ giả khỏi cuộc đời"},
-    {die: false, number: 1, phrase1: "Mọi người hôm nay thật vui vẻ vì đêm qua không một ai chết cả, nhưng mọi người hầu như chỉ vui vẻ bên ngoài còn bên trong ai ai cũng lo lắng liệu bọn sói đêm qua chỉ là ngủ quên."}
-]
+    {die: false, number: 1, phrase1: "Mọi người hôm nay thật vui vẻ vì đêm qua không một ai chết cả, nhưng mọi người hầu như chỉ vui vẻ bên ngoài còn bên trong ai ai cũng lo lắng liệu bọn sói đêm qua chỉ là ngủ quên.", phrase2: ""},
+    {die: false, number: 2, phrase1: "VỪa sáng sớm là mọi người đã bắt đầu sang nhà người thân thiết với họ hỏi thăm, thì đêm qua bọn sói có vẻ chịu ngoan hiền mà không giết ai", phrase2: ""}
+] 
+
 //storyVote là lúc mọi người đã nghi ngờ xong
-//userVote là kiểm tra xem mọi người có ai bị nghi ngờ không
+//userVote là kiểm tra xem mọi người có ai bị nghi ngờ không => false là không || true là có
+//có 2 phrase
+//sau phrase1 là những người bị vote
 var storyVote = [
-    {userVote: false, number: 1, phrase1: "Với tin hung như vậy mọi người bắt đầu bàn tán với nhau hăng say đến đêm."},
-    {userVote: true, number: 1, phrase1: "Mọi người bắt đầu lo sợ và mỗi người có một suy nghĩ độc đoán và họ đã bàn tán đến cuối cùng đã đưa"},
-    {userVote: true, number: 2, phrase1: "Vì thế mọi người lại bàn tán và đưa ra quyết định đưa", phrase2: "lên sàn."}
+    {userVote: false, number: 1, phrase1: ". Với tin hung như vậy mọi người bắt đầu bàn tán với nhau hăng say đến đêm", phrase2: ""},
+    {userVote: true, number: 1, phrase1: ". Mọi người bắt đầu lo sợ và mỗi người có một suy nghĩ độc đoán và họ đã bàn tán đến cuối cùng đã đưa", phrase2: ""},
+    {userVote: true, number: 2, phrase1: ". Vì thế mọi người lại bàn tán và đưa ra quyết định đưa", phrase2: "lên sàn"}
 ]
+
 //storyAdvocate là lúc mọi người bầu quyết nên giết hay tha
-//die thể hiện việc tha hay không
+//die thể hiện việc tha hay không => true là ra đi || false là tha
+//có 2 phrase
+//sau phrase1 là tên người đang bị vote
 var storyAdvocate = [
     {die: true, number: 1, phrase1: "Mọi người đã cho", phrase2: "biện hộ nhưng anh ta không thuyết phục được ai nên đã ra đi"},
-    {die: true, number: 2, phrase1: "Sau một hồi biện hộ thì người đó cũng không thể thoát khỏi cái chết."}
+    {die: true, number: 2, phrase1: "Sau một hồi biện hộ thì", phrase2: "cũng không thể thoát khỏi cái chết"},
+    {die: false, number: 1, phrase1: "Với đầy chứng cứ thì", phrase2: "đã chứng minh được bản thân trong sạch nên được thả ra"},
+    {die: false, number: 2, phrase1: "Với kinh nghiệm và lối sống lươn lẹo của", phrase2: "thì đã tự giúp chính bản thân vượt qua án tử"}
 ]
+
 //storyAdvocateLove là người đang sống có tình yêu vs người đã chết
-var storyAdvocateLove = [
-    {number: 1, phrase1: "và với tình yêu mãnh liệt thì", phrase2: "đã gieo mình xuống vược sâu để được theo", phrase3: "để lại mọi sự thắc mắc với lí do gì mà", phrase4: "lại tự vẫn nhưng", phrase5: "là người đã hiểu rõ lí do tại sao lại xảy ra chuyện như vậy"}
+//có 4 phrase
+//sau phrase1 là tên người chết theo
+//sau phrase2 là tên người chết kéo theo
+//sau phrase3 là tên người giữ thẻ bài tình yêu
+var storyDieLove = [
+    {number: 1, phrase1: ", và với tình yêu mãnh liệt thì", phrase2: "đã gieo mình xuống vược sâu để được theo", phrase3: "để lại mọi sự thắc mắc với lí do gì mà tự nhiên người đó lại tự vẫn nhưng", phrase4: "là người đã hiểu rõ lí do tại sao lại xảy ra chuyện như vậy"}
+]
+
+//story là người bị thợ săn ngắm trúng
+//có 3 phrase
+//sau phrase1 là người thợ săn vừa chết
+//sau phrase2 là người bị thợ săn bắn
+var storyDieShot = [
+    {number: 1, phrase1: ", với lời nguyện của mũi tên thợ săn thì sự ra đi của", phrase2: "đã kéo thêm", phrase3: "rời khỏi cuộc sống đầy chông chênh"}
 ]
 
 //config socket.io
@@ -1525,6 +1568,222 @@ io.sockets.on("connection", (socket) => {
                 else
                     socket.to(user.id).emit("S_call", {baiName: "Result", baiId: "3", notification: notification, playerDie: null, playerAlive: null, playerVote: null})
         }
+    }
+
+    //woftList là tên những người giữ thẻ bài sói
+    //tên của nạn nhân
+    function randomStoryWort(beBitten, woftList, victim){
+        var storyTemp = storyWoft.filter((e) => e.beBitten == beBitten)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        var strWoft = ""
+        for(var item of woftList){
+            if(item === woftList[woftList.length])
+                strWoft += item 
+            else
+                strWoft += item + ", "
+        }
+        var storySelection = storyTemp[random]
+        if(beBitten)
+            return storySelection.phrase1 + strWoft + storySelection.phrase2 + " " + victim + " " + phrase3
+        else
+            return storySelection.phrase1 + strWoft + storySelection.phrase2
+    }
+
+    //sử dụng hàm khi nạn nhân được bảo vệ
+    function randomStoryWortProtected(){
+        var lengthList = storyWoftProtected.length
+
+        var random = Math.floor(Math.random() * lengthList);
+
+        return storyWoftProtected[random].phrase1
+    }
+
+    //die là tình trạng của người bảo vệ
+    //guard là người giữ thẻ bài bảo vệ
+    //userProtected là người được bảo vệ
+    function randomStoryGuard(die, guard, userProtected){
+        var storyTemp = storyGuard.filter((e) => e.die == die)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+        if(!die)
+            return storySelection.phrase1 + guard + storySelection.phrase2 + " " + userProtected + " " + phrase3
+        else
+            return storySelection.phrase1
+    }
+
+    //hunter là người giữ thẻ bài thợ săn
+    //userShot là người bị thợ săn ngắm
+    function randomStoryHunter(hunter, userShot){
+        var lengthList = storyHunter.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        return storySelection.phrase1 + hunter + storySelection.phrase2 + " " + userShot + " " + phrase3
+    }
+
+    //cupid là người giữ thẻ tình yêu
+    //userLoveList là 2 người đc ban tình yêu
+    function randomStoryCupid(cupid, userLoveList){
+        var lengthList = storyCupid.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        var userLove = userLoveList[0] + ", " + userLoveList[1] 
+
+        return storySelection.phrase1 + cupid + storySelection.phrase2 + " " + userLove + " " + phrase3
+    }
+
+    //die là tình trạng của người thổi sáo
+    //flute là người thổi sáo
+    //2 người bị thôi niên
+    function randomStoryFlute(die, flute, userList){
+        var storyTemp = storyFlute.filter((e) => e.die == die)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        var userHypnosis = ""
+        for(var item of userList){
+            if(item == userList[userList.length])
+                userHypnosis += item
+            else
+                userHypnosis += item + ", "
+        }
+
+        if(!die)
+            return storySelection.phrase1 + flute + storySelection.phrase2 + " " + userHypnosis + " " + phrase3
+        else
+            return storySelection.phrase1 + flute + storySelection.phrase2
+    }
+
+    //die là tình trạng của tiên tri
+    //prophesy là người giữ thẻ bài tiên tri
+    //user là người bị tiên tri soi
+    function randomStoryProphesy(die, prophesy, user){
+        var storyTemp = storyProphesy.filter((e) => e.die == die)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        if(!die)
+            return storySelection.phrase1 + prophesy + storySelection.phrase2 + " " + user + " " + phrase3
+        else
+            return storySelection.phrase1 + prophesy + storySelection.phrase2
+    }
+
+    //userWoft là thể hiện người bị soi là sói hay không => userWoft: false là kh phải || true là sói
+    //user là người bị tiên tri soi
+    function randomStoryProphesyResult(userWoft, user){
+        var storyTemp = storyProphesyResult.filter((e) => e.userWoft == userWoft)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+        return storySelection.phrase1 + " " + user + " " + storySelection.phrase2
+    }
+
+    //dành cho việc người phù thủy đã chết
+    //witch là người giữ thẻ bài phù thủy
+    function randomStoryWitchIsDie(witch){
+        var lengthList = storyWitchIsDie.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+        return storySelection.phrase1 + " " + witch + " " + storySelection.phrase2
+    }
+
+    //Kiểm tra đêm qua có người chết không
+    //userDie là những người đã chết đêm qua
+    function randomStoryMorning(die, userDie){
+        var storyTemp = storyMorning.filter((e) => e.die == die)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        var user = ""
+        for(var item of userList){
+            if(item == userList[userList.length])
+                user += item
+            else
+                user += item + ", "
+        }
+        if(die)
+            return storySelection.phrase1 + " " + user + " " + storySelection.phrase2
+        else
+            return storySelection.phrase1
+    }
+
+    //userVote là thể hiện việc có người bị nghi ngờ không => false là không || true là có
+    //userList là những người bị nghi ngờ
+    function randomStoryVote(userVote, userList){
+        var storyTemp = storyVote.filter((e) => e.userVote == userVote)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        var user = ""
+        for(var item of userList){
+            if(item == userList[userList.length])
+                user += item
+            else
+                user += item + ", "
+        }
+        if(userVote)
+            return storySelection.phrase1 + " " + user + " " + storySelection.phrase2
+        else
+            return storySelection.phrase1
+    }
+
+    //die là tình trang của người đang biện hộ => false: là tha || true: bị giết
+    //userVote là người đang biện hộ
+    function randomStoryAdvocate(die, userVote){
+        var storyTemp = storyAdvocate.filter((e) => e.die == die)
+
+        var lengthList = storyTemp.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        return storySelection.phrase1 + " " + userVote + " " + storySelection.phrase2
+    }
+
+    //userLove là người chết theo tình yêu
+    //userDie là người vừa chết 
+    //cupid là người giữ thẻ bài tình yêu
+    function randomStoryDieLove(userLove, userDie, cupid){
+        var lengthList = storyDieLove.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        return storySelection.phrase1 + " " + userLove + " " + storySelection.phrase2 + " " + userDie + " " + storySelection.phrase3 + " " + cupid + " " + storySelection.phrase4
+    }
+
+    //hunter là thợ săn vừa bị chết
+    //userShot là người bị sợ săn ngắm bắn
+    function randomStoryDieShot(hunter, userShot){
+        var lengthList = storyDieShot.length
+        var random = Math.floor(Math.random() * lengthList);
+        
+        var storySelection = storyTemp[random]
+
+        return storySelection.phrase1 + " " + hunter + " " + storySelection.phrase2 + " " + userShot + " " + storySelection.phrase3
     }
 })
 
