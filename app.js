@@ -1,5 +1,6 @@
 // connect firebase
 var FCM = require('fcm-node')
+var request = require('request')
 var serviceAccount = require("./firebase.json")
 var fcm = new FCM(serviceAccount)
 
@@ -37,7 +38,7 @@ var funcList = [
     {number: 10, id: "61ea1029c550781bbe59b36b", name: "Dân Làng"}
 ]
 
-//roomId || time || voteTime || advocateTime || code || quantity || historyId
+//roomId || time || voteTime || advocateTime || code || quantity || historyId || round || story
 var timeList = []
 
 //user || roomId
@@ -148,8 +149,7 @@ var storyWitchIsDie = [
 //used là để bình cứ đã dùng chưa => false: chưa dùng || true: đã dùng
 //userDie
 var storyWitchHelp = [
-    {used: false, number: 1, phrase1: "đang ngủ ngon thì", phrase2: "bừng tỉnh dậy do cảm nhận được 1 người trong làng bị chết, và sau một hồi đấng đo thì "},
-    {use}
+    {used: false, number: 1, phrase1: "đang ngủ ngon thì", phrase2: "bừng tỉnh dậy do cảm nhận được 1 người trong làng bị chết, và sau một hồi đấng đo thì "}
 ]
 
 //used là để biết bình giết đã còn hay không
@@ -235,7 +235,7 @@ io.sockets.on("connection", (socket) => {
         timer() 
     },1000)
 
-    //client login || data: user, device
+    //client login || data: user, device, name
     socket.on('login', (data) => {
         var info = JSON.parse(data)
 
@@ -255,7 +255,8 @@ io.sockets.on("connection", (socket) => {
                 user: info.user,
                 device: info.device,
                 status: true,
-                id: socket.id
+                id: socket.id,
+                name: "Tôi là Tôi"
             })
         }
 
@@ -655,6 +656,8 @@ io.sockets.on("connection", (socket) => {
             timeList[index].advocateTime = info.advocateTime
             timeList[index].quantity = players.length
             timeList[index].historyId = info.historyId
+            timeList[index].round = 1
+            timeList[index].story = ""
         }else{
             timeList.push(
                 {
@@ -664,7 +667,9 @@ io.sockets.on("connection", (socket) => {
                     advocateTime: info.advocateTime,
                     code: 0,
                     quantity: players.length,
-                    historyId: info.historyId
+                    historyId: info.historyId,
+                    round: 1,
+                    story: ""
                 })
         }
         check1("Start_Time", timeList);
@@ -723,7 +728,7 @@ io.sockets.on("connection", (socket) => {
         })
     })
 
-    //data: user || roomId
+    //data: user || roomId || cupid
     //roomPlayer: user || ready || func || roomId || patriarch || hypnosis || love || shot || protected || die || bitten || beBitten || potionHelp || potionDie || beVote || isVote || agreeAdvocate
     socket.on("cupid", (data) => {
         var info = JSON.parse(data)
@@ -736,16 +741,22 @@ io.sockets.on("connection", (socket) => {
         var players = roomPlayer.filter((e) => e.roomId == info.roomId && e.love == true)
         //kiểm tra đã đủ số lượng
         if(players.length == 2){
+            var playerLoveName = []
             //gửi nhận biết đến người có tình yêu
             for(var item of players){
                 var playerLove = userList.find((e) => e.user == item.user)
                 if(playerLove !== undefined){
+                    playerLoveName.push(playerLove.name)
+
                     if(playerLove.id == socket.id)
                         socket.emit("S_cupid", {playerList: players})
                     else
                         socket.to(playerLove.id).emit("S_cupid", {playerList: players})
                 }
             }
+
+            var infoCupid = userList.find((e) => e.user == info.cupid)
+            randomStoryCupid(infoCupid.name, playerLoveName)
 
             var infoRoom = timeList.find((e) => e.roomId == info.roomId)
             if(infoRoom.quantity < 15){
@@ -756,14 +767,22 @@ io.sockets.on("connection", (socket) => {
         }
     })
 
-    //data: user || roomId
+    //data: user || roomId || guard
     socket.on("protected", (data) => {
         var info = JSON.parse(data)
+        var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+        var indexRoomOfTimeList = timeList.indexOf(infoRoom)
 
         if(info.user !== ""){
             var player = roomPlayer.find((e) => e.user == info.user)
             var index = roomPlayer.indexOf(player)
             roomPlayer[index].protected = true
+
+            var guardInfo = userList.find((e) => e.user == info.guard)
+            var userProtected = userList.find((e) => e.user == info.user)
+            timeList[indexRoomOfTimeList].story += randomStoryGuard(false, "<Bảo vệ tạm thời hàng 777>", userProtected.name)
+        }else{
+            timeList[indexRoomOfTimeList].story += randomStoryGuard(true, "", "")
         }
 
         callNext(info.roomId, 1, rangeTime, 1)
@@ -794,50 +813,32 @@ io.sockets.on("connection", (socket) => {
         var infoRoom = timeList.find((e) => e.roomId == info.roomId)
         if(infoRoom.quantity < 7){
             if(info.userBitten !== ""){
-                //kiểm tra người bị cắn có được bảo vệ không
-                if(!playerBitten.protected){
-                    playerDieNew.push({
-                        user: playerBitten.user,
-                        roomId: playerBitten.roomId
-                    })
-                }
+                userBitten(true, playerBitten, players, info.roomId)
+            }else{
+                userBitten(false, "", players, info.roomId)
             }
-            //kiểm tra tình yêu
-            //callNext(info.roomId, 8, rangeTime, 4)
             callNext(info.roomId, 2, rangeTime, 4)
         }else if(infoRoom.quantity < 10){
             if(players.length == 2){
-                if(playerBittens.length == 1){
-                    //kiểm tra người bị cắn có được bảo vệ không
-                    if(!playerBittens[0].protected){
-                        playerDieNew.push({
-                            user: playerBittens[0].user,
-                            roomId: playerBittens[0].roomId
-                        })
-                    }
+                if(playerBitten.length == 0){
+                    userBitten(false, "", players, info.roomId)
+                }
+                else if(playerBittens.length == 1){
+                    userBitten(true, playerBittens[0], players, info.roomId)
                 }else{
                     var random = Math.floor(Math.random() * playerBittens.length);
-                    //kiểm tra người bị cắn có được bảo vệ không
-                    if(!playerBittens[random].protected){
-                        playerDieNew.push({
-                            user: playerBittens[random].user,
-                            roomId: playerBittens[random].roomId
-                        })
-                    }
+                    userBitten(true, playerBittens[random], players, info.roomId)
                 }
 
                 callNext(info.roomId, 2, rangeTime, 1)
             }
         }else if(infoRoom.quantity < 14){
             if(players.length == 3){
-                if(playerBittens.length == 1){
-                    //kiểm tra người bị cắn có được bảo vệ không
-                    if(!playerBittens[0].protected){
-                        playerDieNew.push({
-                            user: playerBittens[0].user,
-                            roomId: playerBittens[0].roomId
-                        })
-                    }
+                if(playerBitten.length == 0){
+                    userBitten(false, "", players, info.roomId)
+                }
+                else if(playerBittens.length == 1){
+                    userBitten(true, playerBittens[0], players, info.roomId)
                 }else{
                     //kiểm tra ai bị cắn nhìu
                     var max = 0
@@ -849,22 +850,10 @@ io.sockets.on("connection", (socket) => {
                     //kiểm tra bị cắn đều không
                     if(max == 1){
                         var random = Math.floor(Math.random() * playerBittens.length);
-                        //kiểm tra người bị cắn có được bảo vệ không
-                        if(!playerBittens[random].protected){
-                            playerDieNew.push({
-                                user: playerBittens[random].user,
-                                roomId: playerBittens[random].roomId
-                            })
-                        }
+                        userBitten(true, playerBittens[random], players, info.roomId)
                     }else{
                         var playerBittenMax = playerBittens.find((e) => e.bitten == max)
-                        //kiểm tra người bị cắn có được bảo vệ không
-                        if(!playerBittenMax.protected){
-                            playerDieNew.push({
-                                user: playerBittenMax.user,
-                                roomId: playerBittenMax.roomId
-                            })
-                        }
+                        userBitten(true, playerBittenMax, players, info.roomId)
                     }
                 }
 
@@ -872,14 +861,11 @@ io.sockets.on("connection", (socket) => {
             }
         }else if(infoRoom.quantity < 17){
             if(players.length == 4){
-                if(playerBittens.length == 1){
-                    //kiểm tra người bị cắn có được bảo vệ không
-                    if(!playerBittens[0].protected){
-                        playerDieNew.push({
-                            user: playerBittens[0].user,
-                            roomId: playerBittens[0].roomId
-                        })
-                    }
+                if(playerBitten.length == 0){
+                    userBitten(false, "", players, info.roomId)
+                }
+                else if(playerBittens.length == 1){
+                    userBitten(true, playerBittens[0], players, info.roomId)
                 }else{
                     //kiểm tra ai bị cắn nhìu
                     var max = 0
@@ -892,44 +878,20 @@ io.sockets.on("connection", (socket) => {
                     switch(max){
                         case 1:{
                             var random = Math.floor(Math.random() * playerBittens.length);
-                            //kiểm tra người bị cắn có được bảo vệ không
-                            if(!playerBittens[random].protected){
-                                playerDieNew.push({
-                                    user: playerBittens[random].user,
-                                    roomId: playerBittens[random].roomId
-                                })
-                            }
+                            userBitten(true, playerBittens[random], players, info.roomId)
                         }break
                         case 2:{
                             if(playerBittens.length == 2){
                                 var random = Math.floor(Math.random() * playerBittens.length);
-                                //kiểm tra người bị cắn có được bảo vệ không
-                                if(!playerBittens[random].protected){
-                                    playerDieNew.push({
-                                        user: playerBittens[random].user,
-                                        roomId: playerBittens[random].roomId
-                                    })
-                                }
+                                userBitten(true, playerBittens[random], players, info.roomId)
                             }else{
                                 var playerBittenMax = playerBittens.find((e) => e.bitten == max)
-                                //kiểm tra người bị cắn có được bảo vệ không
-                                if(!playerBittenMax.protected){
-                                    playerDieNew.push({
-                                        user: playerBittenMax.user,
-                                        roomId: playerBittenMax.roomId
-                                    })
-                                }
+                                userBitten(true, playerBittenMax, players, info.roomId)
                             }
                         }break
                         case 3:{
                             var playerBittenMax = playerBittens.find((e) => e.bitten == max)
-                            //kiểm tra người bị cắn có được bảo vệ không
-                            if(!playerBittenMax.protected){
-                                playerDieNew.push({
-                                    user: playerBittenMax.user,
-                                    roomId: playerBittenMax.roomId
-                                })
-                            }
+                            userBitten(true, playerBittenMax, players, info.roomId)
                         }break
                     }
                 }
@@ -938,14 +900,11 @@ io.sockets.on("connection", (socket) => {
             }
         }else if(infoRoom.quantity >= 17){
             if(players.length == 5){
-                if(playerBittens.length == 1){
-                    //kiểm tra người bị cắn có được bảo vệ không
-                    if(!playerBittens[0].protected){
-                        playerDieNew.push({
-                            user: playerBittens[0].user,
-                            roomId: playerBittens[0].roomId
-                        })
-                    }
+                if(playerBitten.length == 0){
+                    userBitten(false, "", players, info.roomId)
+                }
+                else if(playerBittens.length == 1){
+                    userBitten(true, playerBittens[0], players, info.roomId)
                 }else{
                     //kiểm tra ai bị cắn nhìu
                     var max = 0
@@ -958,45 +917,21 @@ io.sockets.on("connection", (socket) => {
                     switch(max){
                         case 1:{
                             var random = Math.floor(Math.random() * playerBittens.length);
-                            //kiểm tra người bị cắn có được bảo vệ không
-                            if(!playerBittens[random].protected){
-                                playerDieNew.push({
-                                    user: playerBittens[random].user,
-                                    roomId: playerBittens[random].roomId
-                                })
-                            }
+                            userBitten(true, playerBittens[random], players, info.roomId)
                         }break
                         case 2:{
                             if(playerBittens.length == 3){
                                 var playerBittenMaxs = playerBittens.filter((e) => e.bitten == max)
                                 var random = Math.floor(Math.random() * playerBittenMaxs.length);
-                                //kiểm tra người bị cắn có được bảo vệ không
-                                if(!playerBittenMaxs[random].protected){
-                                    playerDieNew.push({
-                                        user: playerBittenMaxs[random].user,
-                                        roomId: playerBittenMaxs[random].roomId
-                                    })
-                                }
+                                userBitten(true, playerBittenMaxs[random], players, info.roomId)
                             }else{
                                 var playerBittenMax = playerBittens.find((e) => e.bitten == max)
-                                //kiểm tra người bị cắn có được bảo vệ không
-                                if(!playerBittenMax.protected){
-                                    playerDieNew.push({
-                                        user: playerBittenMax.user,
-                                        roomId: playerBittenMax.roomId
-                                    })
-                                }
+                                userBitten(true, playerBittenMax, players, info.roomId)
                             }
                         }break
                         case 3: case 4:{
                             var playerBittenMax = playerBittens.find((e) => e.bitten == max)
-                            //kiểm tra người bị cắn có được bảo vệ không
-                            if(!playerBittenMax.protected){
-                                playerDieNew.push({
-                                    user: playerBittenMax.user,
-                                    roomId: playerBittenMax.roomId
-                                })
-                            }
+                            userBitten(true, playerBittenMax, players, info.roomId)
                         }break
                     }
                 }
@@ -1016,21 +951,63 @@ io.sockets.on("connection", (socket) => {
         }
     })
 
-    //data: user || roomId
+    function userBitten(beBitten, playerBitten, playerWofts, roomId){
+        var infoRoom = timeList.find((e) => e.roomId == roomId)
+        var index = timeList.indexOf(infoRoom)
+        var woftList = []
+
+        for(var item of playerWofts){
+            var user = userList.find((e) => e.user === item.user)
+            woftList.push(user.name)
+        }
+
+        if(beBitten){
+            //kiểm tra người bị cắn có được bảo vệ không
+            if(!playerBitten.protected){
+                playerDieNew.push({
+                    user: playerBitten.user,
+                    roomId: playerBitten.roomId
+                })
+            }
+
+            var victim = userList.find((e) => e.user == playerBitten.user)
+
+            timeList[index].story += randomStoryWort(beBitten, woftList, victim.name)
+
+            if(playerBitten.protected){
+                timeList[index].story += randomStoryWortProtected()
+            }
+        }else{
+            timeList[index].story += randomStoryWort(beBitten, woftList, "")
+        }
+    }
+
+    //data: user || roomId || prophesy
     socket.on("prophesy", (data) => {
         var info = JSON.parse(data)
+        var infoRoom = timeList.find((e) => e.roomId == info.roomId)
+        var indexRoom = timeList.indexOf(infoRoom)
+        timeList[indexRoom]
+        var infoProphesy = userList.find((e) => e.user == info.prophesy)
 
         if(info.user !== ""){
             var player = roomPlayer.find((e) => e.user == info.user)
+            randomStoryProphesy(false, infoProphesy.name, player.name)
+
             check1("kiểm tra sói", player)
             var answer = "Đó là dân làng"
             if(player.func === 1 || player.func === 9){
+                randomStoryProphesyResult(true, player.name)
                 answer = "Đúng là sói rồi đó"
+            }else{
+                randomStoryProphesyResult(true, player.name)
             }
 
             socket.emit('S_prophesy', {
                 answer: answer
             })
+        }else{
+            randomStoryProphesy(true, infoProphesy.name, "")
         }
 
         var infoRoom = timeList.find((e) => e.roomId == info.roomId)
@@ -1067,6 +1044,11 @@ io.sockets.on("connection", (socket) => {
                 var index = roomPlayer.indexOf(player)
                 roomPlayer[index].potionDie = false
             }
+        }else{
+            if(info.code == 2){
+                var infoWitch = userList.find((e) => e.user == info.user)
+                randomStoryWitchIsDie(infoWitch.name)
+            }
         }
 
         if(info.code == 1){
@@ -1083,7 +1065,7 @@ io.sockets.on("connection", (socket) => {
         }
     })
 
-    //data: user || roomId
+    //data: user || roomId || flute
     socket.on("flute", (data) => {
         var info = JSON.parse(data)
 
@@ -1108,13 +1090,17 @@ io.sockets.on("connection", (socket) => {
         }
     })
 
-    //data: user || roomId
+    //data: user || roomId || hunter
     socket.on("hunter", (data) => {
         var info = JSON.parse(data)
 
         var player = roomPlayer.find((e) => e.user == info.user)
         var index = roomPlayer.indexOf(player)
         roomPlayer[index].shot = true
+
+        var userShot = userList.find((e) => e.user == info.user)
+        var userHunter = userList.find((e) => e.user == info.hunter)
+        randomStoryHunter(userHunter.name, userShot.name)
 
         var infoRoom = timeList.find((e) => e.roomId == info.roomId)
         if(infoRoom.quantity < 15)
@@ -1238,8 +1224,11 @@ io.sockets.on("connection", (socket) => {
             var playerVotes = playerAlive.filter((e) => e.beVote > 0)
             if(playerVotes.length > 1)
                 callNext(info.roomId, 13, infoRoom.advocateTime, 3)
-            else
+            else{
+                //buổi sáng kết thúc, màn đêm buôn xuống
+                sendStory(info.roomId)
                 callNext(info.roomId, 3, rangeTime, 1)
+            }
         }
     })
 
@@ -1416,11 +1405,12 @@ io.sockets.on("connection", (socket) => {
     }
 
     //number -> 11: vòng vote || 12: vòng advocate
-    function call(roomId, number){
+    function call(roomId, number){ 
         check1("checkcall",roomId+" || "+number)
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == roomId)
         var infoBai = funcList.find((e) => e.number == number)
 
+        //number < 11 là các thẻ bài, number == 11 là bắt đầu vote, number == 12 là bắt đầu advocate
         if(number < 11){
             var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
 
@@ -1434,6 +1424,8 @@ io.sockets.on("connection", (socket) => {
                         socket.to(user.id).emit("S_call", {baiName: infoBai.name, baiId: infoBai.id, playerDie: playerDies, playerAlive: null, playerVote: null})
             }
         }else if(number == 11){
+            //apiAddStory("kiểm tra api", "61fe4e47085900b280d290f7", "19:00", "19:05", "kiểm tra ổn kh ta")
+
             var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
             var playerResult = []
 
@@ -1486,6 +1478,8 @@ io.sockets.on("connection", (socket) => {
                     roomPlayer[indexDie_roomPLayer].die = true
                 }
             }
+            //mặt trời chiếu sáng
+            sendStory(roomId)
 
             var playerAlive = roomPlayer.filter((e) => e.die == false && e.roomId == roomId)
 
@@ -1524,16 +1518,37 @@ io.sockets.on("connection", (socket) => {
         }
     }
 
+    function sendStory(roomId){
+        var infoRoom = timeList.find((e) => e.roomId == roomId)
+
+        var name = "", so = 0
+        if(infoRoom.round % 2 != 0){
+            //công thức tìm vị trí của số lẻ trong dãy số lẻ
+            so  = (infoRoom.round - 1)/2 +1
+            name = "Đêm thứ "+ so
+        }else{
+            //công thức tìm vị trí của số chẳn trong dãy số chẳn
+            so = (infoRoom.round - 2)/2 + 1
+            name = "Sáng thứ"+ so
+        }
+
+        apiAddStory(name, infoRoom.historyId, "19:00", "19:05", infoRoom.story)
+
+        var index = timeList.indexOf(infoRoom)
+        timeList[index].round ++;
+        timeList[index].story = "";
+    }
+
     //Tính thời gian kế tiếp || hiện tại phép tính đc thực hiện theo phút
     function countTimeNext(range){
         return Math.floor((Date.now()/1000/60)) + range
     }
 
-    function switchResult(playerOfRoom, playerAlive){
+    //những chiến thắng của người chơi
+    function switchResult(playerOfRoom, playerAlive){      
         var playerAliveHypnosis = playerAlive.filter((e) => e.hypnosis == true)
         if(playerAliveHypnosis.length == playerAlive.length-1){
             sendResult(playerOfRoom, "Người thổi sáo chiến thắng")
-
             return 1
         }
 
@@ -1545,7 +1560,7 @@ io.sockets.on("connection", (socket) => {
         }
 
         var playerWoft = playerAlive.filter((e) => e.func == 1 || e.func == 9)
-        var playerPerson = playerAlive.filter((e) => e.func != 1 && e.func == 9)
+        var playerPerson = playerAlive.filter((e) => e.func != 1 && e.func != 9)
         if(playerWoft.length == 0){
             sendResult(playerOfRoom, "Phe dân làng chiến thắng")
             return 1
@@ -1586,7 +1601,7 @@ io.sockets.on("connection", (socket) => {
         }
         var storySelection = storyTemp[random]
         if(beBitten)
-            return storySelection.phrase1 + strWoft + storySelection.phrase2 + " " + victim + " " + phrase3
+            return storySelection.phrase1 + strWoft + storySelection.phrase2 + " " + victim + " " + storySelection.phrase3
         else
             return storySelection.phrase1 + strWoft + storySelection.phrase2
     }
@@ -1611,7 +1626,7 @@ io.sockets.on("connection", (socket) => {
         
         var storySelection = storyTemp[random]
         if(!die)
-            return storySelection.phrase1 + guard + storySelection.phrase2 + " " + userProtected + " " + phrase3
+            return storySelection.phrase1 + guard + storySelection.phrase2 + " " + userProtected + " " + storySelection.phrase3
         else
             return storySelection.phrase1
     }
@@ -1677,7 +1692,7 @@ io.sockets.on("connection", (socket) => {
         var storySelection = storyTemp[random]
 
         if(!die)
-            return storySelection.phrase1 + prophesy + storySelection.phrase2 + " " + user + " " + phrase3
+            return storySelection.phrase1 + prophesy + storySelection.phrase2 + " " + user + " " + storySelection.phrase3
         else
             return storySelection.phrase1 + prophesy + storySelection.phrase2
     }
@@ -1784,6 +1799,26 @@ io.sockets.on("connection", (socket) => {
         var storySelection = storyTemp[random]
 
         return storySelection.phrase1 + " " + hunter + " " + storySelection.phrase2 + " " + userShot + " " + storySelection.phrase3
+    }
+
+    //hàm truy xuất api lên server
+    function apiAddStory(name, historyId, startTime, endTime, content){
+        var myJSONObject = {
+            "Name": name,
+            "HistoryId": historyId,
+            "StartTime": startTime,
+            "EndTime": endTime,
+            "Content": content
+        }
+
+        request({
+            url: "https://game.covid21tsp.space/api/CreateStory_Post",
+            method: "POST",
+            json: true,
+            body: myJSONObject
+        }, function (error, response, body){
+            
+        })
     }
 })
 

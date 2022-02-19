@@ -9,6 +9,7 @@
     "fcm-node": "^1.6.1",
     "firebase-admin": "^10.0.1",
     "nodemon": "^2.0.15",
+    "request": "^2.88.2",
     "socket.io": "^4.4.1"
   }
 }
