@@ -1176,6 +1176,10 @@ io.sockets.on("connection", (socket) => {
             var playerVoteHeader = playerAlive.find((e) => e.beVote > 0)
             var indexVoteHeader = roomPlayer.indexOf(playerVoteHeader)
  
+            var infoRoomPlay = timeList.find((e) => e.roomId == info.roomId)
+            var indexRoom = timeList.indexOf(infoRoomPlay)
+            var infoUserAdvocate = userList.find((e) => e.user == playerVoteHeader.user)
+
             if(agree.length-1 > disAgree){
                 roomPlayer[indexVoteHeader].die = true
 
@@ -1190,6 +1194,8 @@ io.sockets.on("connection", (socket) => {
                 }
 
                 playerAlive = roomPlayer.filter((e) => e.roomId == info.roomId && e.die == false)
+
+                timeList[indexRoom].story += randomStoryAdvocate(true, infoUserAdvocate.name)
             }else{
                 roomPlayer[indexVoteHeader].beVote = 0
 
@@ -1202,6 +1208,8 @@ io.sockets.on("connection", (socket) => {
                             socket.to(user.id).emit("S_playerVote", {userDie: playerVoteHeader.user, message: "Đã thoát khỏi cái chết", isDie: false})
                     }
                 } 
+
+                timeList[indexRoom].story += randomStoryAdvocate(false, infoUserAdvocate.name)
             }
 
             var switchR = switchResult(playerOfRoom, playerAlive)
@@ -1405,7 +1413,7 @@ io.sockets.on("connection", (socket) => {
     }
 
     //number -> 11: vòng vote || 12: vòng advocate
-    function call(roomId, number){ 
+    function call(roomId, number){  
         check1("checkcall",roomId+" || "+number)
         var playerOfRoom = roomPlayer.filter((e) => e.roomId == roomId)
         var infoBai = funcList.find((e) => e.number == number)
@@ -1426,8 +1434,16 @@ io.sockets.on("connection", (socket) => {
         }else if(number == 11){
             //apiAddStory("kiểm tra api", "61fe4e47085900b280d290f7", "19:00", "19:05", "kiểm tra ổn kh ta")
 
+            //mặt trời chiếu sáng
+            sendStory(roomId)
+
+            var playerHunterDie_User = ""
+            var playerLoveDie_User = ""
+
             var playerDies = playerDieNew.filter((e) => e.roomId == roomId)
             var playerResult = []
+            //dùng hàm viết chuyện
+            var nameList = []
 
             for(var item of playerDies){
                 var playerDie = roomPlayer.find((e) => e.user == item.user)
@@ -1438,38 +1454,22 @@ io.sockets.on("connection", (socket) => {
                     var infoUser = userList.find((e) => e.user == item.user)
                     socket.to(infoUser.id).emit("S_changeFunc", {})
                 }else{
+                    //kiểm tra người chết có phải thợ sân không
                     if(playerDie.func == 5){
-                        var playerAliveShot = roomPlayer.find((e) => e.roomId == roomId && e.die == false && e.shot == true)
-                        check1("method: call - check playerAliveShot", playerAliveShot)
-                        if(playerAliveShot != null){
-                            var indexShot = roomPlayer.indexOf(playerAliveShot)
-                            roomPlayer[indexShot].die = true
-
-                            playerResult.push({
-                                user: playerAliveShot.user,
-                                roomId: playerAliveShot.roomId
-                            })
-                        } 
+                        playerHunterDie_User = playerDie.user
                     }
 
                     if(playerDie.love == true){
-                        var playerAliveLove = roomPlayer.find((e) => e.roomId == roomId && e.die == false && e.love == true && e.user != playerDie.user)
-                        check1("method: call - check playerAliveLove", playerAliveLove)
-                        if(playerAliveLove != null){
-                            var indexLove = roomPlayer.indexOf(playerAliveLove)
-                            roomPlayer[indexLove].die = true
-
-                            playerResult.push({
-                                user: playerAliveLove.user,
-                                roomId: playerAliveLove.roomId
-                            })
-                        }
+                        playerLoveDie_User = playerDie.user
                     }
 
                     playerResult.push({
                         user: item.user,
                         roomId: item.roomId
                     })
+
+                    var infoPlayerDie = userList.find((e) => e.user == item.user)
+                    userList.push(infoPlayerDie.name)
 
                     var indexDie = playerDieNew.indexOf(item)
                     playerDieNew.splice(indexDie, 1)
@@ -1478,8 +1478,52 @@ io.sockets.on("connection", (socket) => {
                     roomPlayer[indexDie_roomPLayer].die = true
                 }
             }
-            //mặt trời chiếu sáng
-            sendStory(roomId)
+
+            var infoRoom = timeList.find((e) => e.roomId == roomId)
+            var indexRoom = timeList.indexOf(infoRoom)
+            if(playerResult.length > 0)
+                timeList[indexRoom].story += randomStoryMorning(true, nameList)
+            else
+                timeList[indexRoom].story += randomStoryMorning(false, null)
+
+            if(playerHunterDie_User != ""){
+                var playerAliveShot = roomPlayer.find((e) => e.roomId == roomId && e.die == false && e.shot == true)
+                check1("method: call - check playerAliveShot", playerAliveShot)
+                if(playerAliveShot != null){
+                    var indexShot = roomPlayer.indexOf(playerAliveShot)
+                    roomPlayer[indexShot].die = true
+
+                    playerResult.push({
+                        user: playerAliveShot.user,
+                        roomId: playerAliveShot.roomId
+                    })
+
+                    var infoHunter = userList.find((e) => e.user == playerHunterDie_User)
+                    var playerShot = userList.find((e) => e.user == playerAliveShot.user)
+                    timeList[indexRoom].story += randomStoryDieShot(infoHunter.name, playerAliveShot.name)
+                } 
+            }
+
+            if(playerLoveDie_User != ""){
+                var playerAliveLove = roomPlayer.find((e) => e.roomId == roomId && e.die == false && e.love == true && e.user != playerLoveDie_User)
+                check1("method: call - check playerAliveLove", playerAliveLove)
+                if(playerAliveLove != null){
+                    var indexLove = roomPlayer.indexOf(playerAliveLove)
+                    roomPlayer[indexLove].die = true
+
+                    playerResult.push({
+                        user: playerAliveLove.user,
+                        roomId: playerAliveLove.roomId
+                    })
+
+                    var cupidRoom = roomPlayer.find((e) => e.roomId == roomId && e.func == 6)
+                    var infoCupid = userList.find((e) => e.user == cupidRoom.user)
+                    var playerLoveDie = userList.find((e) => e.user == playerLoveDie_User)
+                    var playerDieForLove = userList.find((e) => e.user == playerAliveLove.user)
+
+                    timeList[indexRoom].story += randomStoryDieLove(playerDieForLove.name, playerLoveDie.name, infoCupid.name)                    
+                }
+            }
 
             var playerAlive = roomPlayer.filter((e) => e.die == false && e.roomId == roomId)
 
@@ -1505,15 +1549,29 @@ io.sockets.on("connection", (socket) => {
             var playerAlive = players.filter((e) => e.die == false)
 
             var playerVotes = playerAlive.filter((e) => e.beVote > 0)
+            //dùng cho hàm tạo câu chuyện
+            var userList = []
             check1("function: call - check playerVotes - number 12", playerVotes)
             for(var item of players){
                 var user = userList.find((e) => e.user == item.user)
                 if(user !== undefined){
+                    var infoPlayer = userList.find((e) => e.user == item.user)
+                    userList.push(infoPlayer.name)
+
                     if(user.id == socket.id)
                         socket.emit("S_call", {baiName: "Advocate", baiId: "2", playerDie: null, playerAlive: null, playerVote: playerVotes})
                     else
                         socket.to(user.id).emit("S_call", {baiName: "Advocate", baiId: "2", playerDie: null, playerAlive: null, playerVote: playerVotes})
                 }
+            }
+
+            var infoRoom1 = timeList.find((e) => e.roomId == roomId)
+            var indexRoom1 = timeList.indexOf(infoRoom1)
+
+            if(playerVote.length > 0){
+                timeList[indexRoom1].story += randomStoryVote(true, userList)
+            }else{
+                timeList[indexRoom1].story += randomStoryVote(false, null)
             }
         }
     }
@@ -1594,7 +1652,7 @@ io.sockets.on("connection", (socket) => {
         var random = Math.floor(Math.random() * lengthList);
         var strWoft = ""
         for(var item of woftList){
-            if(item === woftList[woftList.length])
+            if(item === woftList[woftList.length-1])
                 strWoft += item 
             else
                 strWoft += item + ", "
@@ -1730,8 +1788,8 @@ io.sockets.on("connection", (socket) => {
         var storySelection = storyTemp[random]
 
         var user = ""
-        for(var item of userList){
-            if(item == userList[userList.length])
+        for(var item of userDie){
+            if(item == userDie[userDie.length-1])
                 user += item
             else
                 user += item + ", "
@@ -1754,7 +1812,7 @@ io.sockets.on("connection", (socket) => {
 
         var user = ""
         for(var item of userList){
-            if(item == userList[userList.length])
+            if(item == userList[userList.length-1])
                 user += item
             else
                 user += item + ", "
